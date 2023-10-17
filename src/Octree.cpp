@@ -43,8 +43,8 @@
 #include <Magnum/Primitives/Icosphere.h>
 #include <Magnum/Shaders/FlatGL.h>
 #include <Magnum/Shaders/PhongGL.h>
+#include <Magnum/Shaders/VertexColorGL.h>
 #include <Magnum/Trade/MeshData.h>
-
 #include "./octree/LooseOctree.h"
 #include "./arcball/ArcBall.h"
 
@@ -66,6 +66,11 @@ namespace Magnum
       Color3 color;
     };
 
+    struct BackgroundData
+    {
+      Matrix4 transformationMatrix;
+    };
+
     class Octree : public Platform::Application
     {
     public:
@@ -85,6 +90,7 @@ namespace Magnum
       void collisionDetectionAndHandlingUsingOctree();
       void checkCollisionWithSubTree(const OctreeNode &node, std::size_t i,
                                      const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds);
+      void drawBackground();
       void drawSpheres();
       void drawTreeNodeBoundingBoxes();
 
@@ -119,6 +125,12 @@ namespace Magnum
       Shaders::FlatGL3D _boxShader{NoCreate};
       Containers::Array<BoxInstanceData> _boxInstanceData;
       bool _drawBoundingBoxes = true;
+
+      /* Background rendering */
+      GL::Mesh _backgroundMesh{NoCreate};
+      GL::Buffer _backgroundBuffer{NoCreate};
+      Shaders::VertexColorGL3D _backgroundShader{NoCreate};
+      Containers::Array<BackgroundData> _backgroundData;
     };
 
     using namespace Math::Literals;
@@ -174,6 +186,16 @@ namespace Magnum
                                                            Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
       }
 
+      /* Setup background */
+      {
+        _backgroundData = Containers::Array<BackgroundData>{NoInit, 1};
+        _backgroundData[0].transformationMatrix = Matrix4::translation(Vector3{0.0}) * Matrix4::scaling(Vector3{2.0});
+
+        _backgroundMesh = MeshTools::compile(Primitives::icosphereSolid(2));
+        _backgroundBuffer = GL::Buffer{};
+        _backgroundMesh.addVertexBuffer(_backgroundBuffer, 0, Shaders::VertexColorGL3D::Position{}, Shaders::VertexColorGL3D::Color3{});
+      }
+
       /* Setup points (render as spheres) */
       {
         const UnsignedInt numSpheres = args.value<UnsignedInt>("spheres");
@@ -198,7 +220,7 @@ namespace Magnum
               Matrix4::scaling(Vector3{_sphereRadius});
           _sphereInstanceData[i].normalMatrix =
               _sphereInstanceData[i].transformationMatrix.normalMatrix();
-          _sphereInstanceData[i].color = Color3{tmpPos};
+          _sphereInstanceData[i].color = Color3{1.0, 0.0, 0.0};
         }
 
         _sphereShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
@@ -264,6 +286,7 @@ namespace Magnum
       /* Update camera before drawing instances */
       const bool moving = _arcballCamera->updateTransformation();
 
+      drawBackground();
       drawSpheres();
       drawTreeNodeBoundingBoxes();
 
@@ -370,6 +393,14 @@ namespace Magnum
 
         _spherePositions[i] = pos;
       }
+    }
+
+    void Octree::drawBackground()
+    {
+      _backgroundBuffer.setData(_backgroundData, GL::BufferUsage::DynamicDraw);
+      _backgroundShader
+          .setTransformationProjectionMatrix(_projectionMatrix * _arcballCamera->viewMatrix())
+          .draw(_backgroundMesh);
     }
 
     void Octree::drawSpheres()
