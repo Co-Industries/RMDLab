@@ -30,35 +30,45 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-find_package(Corrade REQUIRED Main)
+find_package(Corrade REQUIRED
+    Main
+    Utility)
+
 find_package(Magnum REQUIRED
     DebugTools
     GL
     MeshTools
     Primitives
     Shaders
+    Trade
     Sdl2Application)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 
 #   Name of .exe file = magnum-octree 
-add_executable(magnum-octree WIN32
-    ./octree/LooseOctree.h
-    ./octree/LooseOctree.cpp
-    Octree.cpp
-    ./arcball/ArcBall.cpp)
-target_link_libraries(magnum-octree PRIVATE
+#add_executable(magnum-octree WIN32
+#    ./octree/LooseOctree.h
+#    ./octree/LooseOctree.cpp
+#    Octree.cpp
+#    ./arcball/ArcBall.cpp)
+
+#   !!! add_executable(... WIN32 ...) == NO CONSOLE
+add_executable(test-RMD Testing.cpp)
+
+target_link_libraries(test-RMD PRIVATE
     Corrade::Main
+    Corrade::Utility
     Magnum::Application
     Magnum::DebugTools
     Magnum::GL
     Magnum::Magnum
     Magnum::MeshTools
     Magnum::Primitives
-    Magnum::Shaders)
+    Magnum::Shaders
+    Magnum::Trade)
 
-install(TARGETS magnum-octree DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
+install(TARGETS test-RMD DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 
 # Make the executable a default target to build & run in Visual Studio
-set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT magnum-octree)
+set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT test-RMD)
