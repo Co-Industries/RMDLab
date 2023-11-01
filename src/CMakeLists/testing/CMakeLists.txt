@@ -54,13 +54,11 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 #    ./arcball/ArcBall.cpp)
 
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
-add_executable(RMD 
-    RMD.cpp
-    ./octree/LooseOctree.h
-    ./octree/LooseOctree.cpp
+add_executable(test-RMD 
+    Testing.cpp
     ./arcball/Arcball.cpp)
 
-target_link_libraries(RMD PRIVATE
+target_link_libraries(test-RMD PRIVATE
     Corrade::Main
     Corrade::Utility
     Magnum::Application
@@ -72,7 +70,7 @@ target_link_libraries(RMD PRIVATE
     Magnum::Shaders
     Magnum::Trade)
 
-install(TARGETS RMD DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
+install(TARGETS test-RMD DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 
 # Make the executable a default target to build & run in Visual Studio
-set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RMD)
+set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT test-RMD)
