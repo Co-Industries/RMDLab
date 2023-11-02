@@ -35,6 +35,13 @@
 
 namespace Magnum
 {
+  struct AtomData
+  {
+    bool isColliding;
+    int lastCollision;
+    float hue;
+  };
+
   struct AtomInstanceData
   {
     Matrix4 transformationMatrix;
@@ -77,6 +84,8 @@ namespace Magnum
     void movePoints();
     void collisionDetectionAndHandlingBruteForce();
     void collisionDetectionAndHandlingUsingOctree();
+    bool findCollision(const Containers::Array<Int> &collisions, Int value);
+    void removeCollision(Containers::Array<Int> &collisions, Int value);
     void checkCollisionWithSubTree(const OctreeNode &node, std::size_t i,
                                    const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds);
     void drawBackground();
@@ -86,10 +95,13 @@ namespace Magnum
     Containers::Optional<ArcBall> _arcballCamera;
     Matrix4 _projectionMatrix;
 
+    Containers::Array<AtomData> _atomData;
+    bool _paused = false;
+    bool _skipFrame = false;
+
     /* Points data as spheres with size */
     Containers::Array<Vector3> _atomPositions;
     Containers::Array<Vector3> _atomVelocities;
-    Containers::Array<Color3> _atomColors;
     Float _atomRadius, _atomVelocity;
     bool _animation = true;
     bool _collisionDetectionByOctree = true;
@@ -135,11 +147,11 @@ namespace Magnum
   RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
   {
     Utility::Arguments args;
-    args.addOption('s', "spheres", "100")
+    args.addOption('s', "spheres", "20")
         .setHelp("spheres", "number of spheres to simulate", "N")
         .addOption('r', "sphere-radius", "0.1")
         .setHelp("sphere-radius", "sphere radius", "R")
-        .addOption('v', "sphere-velocity", "0.5")
+        .addOption('v', "sphere-velocity", "0.3")
         .setHelp("sphere-velocity", "sphere velocity", "V")
         .addSkippedPrefix("magnum")
         .parse(arguments.argc, arguments.argv);
@@ -151,8 +163,7 @@ namespace Magnum
     {
       const Vector2 dpiScaling = this->dpiScaling({});
       Configuration conf;
-      /*CHANGE setTitle("Magnum RMD") = .exe window title*/
-      conf.setTitle("RMD v0.1.2")
+      conf.setTitle("RMD v0.1.2.1")
           .setSize(conf.size(), dpiScaling)
           .setWindowFlags(Configuration::WindowFlag::Resizable);
       GLConfiguration glConf;
@@ -219,8 +230,8 @@ namespace Magnum
       const UnsignedInt numSpheres = args.value<UnsignedInt>("spheres");
       _atomPositions = Containers::Array<Vector3>{NoInit, numSpheres};
       _atomVelocities = Containers::Array<Vector3>{NoInit, numSpheres};
-      _atomColors = Containers::Array<Color3>{NoInit, numSpheres};
       _atomInstanceData = Containers::Array<AtomInstanceData>{NoInit, numSpheres};
+      _atomData = Containers::Array<AtomData>{NoInit, numSpheres};
 
       for (std::size_t i = 0; i < numSpheres; ++i)
       {
@@ -231,7 +242,6 @@ namespace Magnum
         _atomPositions[i] = tmpPos * 2.0f - Vector3{1.0f};
         _atomPositions[i].y() *= 0.5f;
         _atomVelocities[i] = (tmpVel * 2.0f - Vector3{1.0f}).resized(_atomVelocity);
-        _atomColors[i] = Color3(1.0, 0.0, 0.0);
 
         /* Fill in the instance data. Most of this stays the same, except
            for the translation */
@@ -288,30 +298,20 @@ namespace Magnum
   void RMD::drawEvent()
   {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
-    _profiler.beginFrame();
 
-    if (_animation)
+    if (!_paused || _skipFrame)
     {
-      if (_collisionDetectionByOctree)
-        collisionDetectionAndHandlingUsingOctree();
-      else
-        collisionDetectionAndHandlingBruteForce();
-
+      _skipFrame = false;
+      collisionDetectionAndHandlingUsingOctree();
       movePoints();
-
-      if (_collisionDetectionByOctree)
-        _octree->update();
+      _octree->update();
     }
-
     /* Update camera before drawing instances */
     const bool moving = _arcballCamera->updateTransformation();
 
     drawBackground();
     drawAtoms();
     drawTreeNodeBoundingBoxes();
-
-    _profiler.endFrame();
-    _profiler.printStatistics(10);
 
     swapBuffers();
 
@@ -358,6 +358,31 @@ namespace Magnum
     }
   }
 
+  bool RMD::findCollision(const Containers::Array<Int> &collisions, Int value)
+  {
+    for (Int collision : collisions)
+    {
+      if (collision == value)
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void RMD::removeCollision(Containers::Array<Int> &collisions, Int value)
+  {
+    arrayResize(collisions, 0);
+    for (Int collision : collisions)
+    {
+      if (collision == value)
+      {
+        continue;
+      }
+      arrayAppend(collisions, InPlaceInit, collision);
+    }
+  }
+
   void RMD::checkCollisionWithSubTree(const OctreeNode &node,
                                       std::size_t i, const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds)
   {
@@ -379,22 +404,51 @@ namespace Magnum
       if (j > i)
       {
         const Vector3 qpos = _atomPositions[j];
+        const Vector3 pospq = ppos - qpos;
         const Vector3 qvel = _atomVelocities[j];
         const Vector3 velpq = pvel - qvel;
-        const Vector3 pospq = ppos - qpos;
         const Float vp = Math::dot(velpq, pospq);
-        if (vp < 0.0f)
+        /* INFO Velocity vector, to stop attraction*/
+        /*if (vp < 0.0f) {
+        }*/
+        const Float dpq = pospq.length();
+        if (dpq < 2.0f * _atomRadius)
         {
-          const Float dpq = pospq.length();
-          if (dpq < 2.0f * _atomRadius)
-          {
-            /* INFO - Collisions*/
-            /*const Vector3 vNormal = vp * pospq / (dpq * dpq);*/
-            /*_atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);*/
-            /*_atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);*/
-            _atomColors[i] = Color3(0.0, 1.0, 0.0);
-            _atomColors[j] = Color3(0.0, 1.0, 0.0);
-          }
+
+          /* INFO - Collisions*/
+          const Vector3 vNormal = vp * pospq / (dpq * dpq);
+          _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
+          _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
+          _atomData[i].isColliding = true;
+          _atomData[j].isColliding = true;
+          _atomData[i].lastCollision = j;
+          _atomData[j].lastCollision = i;
+          _atomInstanceData[i].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomData[i].hue += 0.0001f;
+          _atomData[j].hue += 0.0001f;
+          continue;
+        }
+
+        if (_atomData[i].lastCollision == j)
+        {
+          _atomData[i].isColliding = false;
+          _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+        }
+        if (_atomData[j].lastCollision == i)
+        {
+          _atomData[j].isColliding = false;
+          _atomInstanceData[j].color = Color3(1.0, 0.0, 0.0);
+        }
+        if (_atomData[i].isColliding)
+        {
+          _atomInstanceData[i].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomData[i].hue += 0.0001f;
+        }
+        if (_atomData[j].isColliding)
+        {
+          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomData[j].hue += 0.0001f;
         }
       }
     }
@@ -476,9 +530,6 @@ namespace Magnum
     {
       _atomInstanceData[i].transformationMatrix.translation() =
           _atomPositions[i];
-
-      _atomInstanceData[i].color = _atomColors[i];
-      _atomColors[i] = Color3(1.0, 0.0, 0.0);
     }
 
     _atomInstanceBuffer.setData(_atomInstanceData, GL::BufferUsage::DynamicDraw);
@@ -567,7 +618,11 @@ namespace Magnum
     }
     else if (event.key() == KeyEvent::Key::Space)
     {
-      _animation ^= true;
+      _paused ^= true;
+    }
+    else if (event.key() == KeyEvent::Key::Right)
+    {
+      _skipFrame = true;
     }
     else
       return;
