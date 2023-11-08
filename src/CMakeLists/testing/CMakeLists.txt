@@ -56,6 +56,8 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
 add_executable(test-RMD 
     Testing.cpp
+    ./octree/LooseOctree.h
+    ./octree/LooseOctree.cpp
     ./arcball/Arcball.cpp)
 
 target_link_libraries(test-RMD PRIVATE

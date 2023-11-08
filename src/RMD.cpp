@@ -38,7 +38,7 @@ namespace Magnum
   struct AtomData
   {
     bool isColliding;
-    int lastCollision;
+    std::size_t lastCollision;
     float hue;
   };
 
@@ -147,7 +147,7 @@ namespace Magnum
   RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
   {
     Utility::Arguments args;
-    args.addOption('s', "spheres", "20")
+    args.addOption('s', "spheres", "75")
         .setHelp("spheres", "number of spheres to simulate", "N")
         .addOption('r', "sphere-radius", "0.1")
         .setHelp("sphere-radius", "sphere radius", "R")
@@ -215,6 +215,14 @@ namespace Magnum
 
       _backgroundShader = Shaders::FlatGL3D{Shaders::FlatGL3D::Configuration{}.setFlags(Shaders::FlatGL3D::Flag::VertexColor | Shaders::FlatGL3D::Flag::InstancedTransformation)};
       _backgroundVertexColorBuffer = GL::Buffer{};
+      for (Vector3 vertex : _backgroundMeshData.positions3DAsArray())
+      {
+        float yValue = (vertex.y() + 0.2f) / 8.0f + 0.3f;
+        Color3 color = Color3({yValue});
+        arrayAppend(_backgroundVertexColors, InPlaceInit, color);
+      }
+      _backgroundVertexColorBuffer.setData(_backgroundVertexColors, GL::BufferUsage::DynamicDraw);
+
       _backgroundMesh.addVertexBuffer(_backgroundVertexColorBuffer, 0, Shaders::FlatGL3D::Color3{});
       _backgroundBuffer = GL::Buffer{};
       _backgroundMesh.addVertexBufferInstanced(_backgroundBuffer, 1, 0, Shaders::FlatGL3D::TransformationMatrix{});
@@ -424,7 +432,7 @@ namespace Magnum
           _atomData[i].lastCollision = j;
           _atomData[j].lastCollision = i;
           _atomInstanceData[i].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
-          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[j].hue * 360.0_degf, 1.0, 2.0));
           _atomData[i].hue += 0.0001f;
           _atomData[j].hue += 0.0001f;
           continue;
@@ -447,7 +455,7 @@ namespace Magnum
         }
         if (_atomData[j].isColliding)
         {
-          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
+          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[j].hue * 360.0_degf, 1.0, 2.0));
           _atomData[j].hue += 0.0001f;
         }
       }
@@ -486,18 +494,18 @@ namespace Magnum
       _backgroundLightnessOffset = -1.0f;
     }
     */
-
+    /*
     arrayResize(_backgroundVertexColors, 0);
     for (Vector3 vertex : _backgroundMeshData.positions3DAsArray())
     {
-      /*float yValue = (fabs(_backgroundLightnessOffset));*/
+      float yValue = (fabs(_backgroundLightnessOffset));
       float yValue = (vertex.y() + 0.2f) / 4.0f + 0.3f;
-      /*Color3 color = Color3::fromHsv(ColorHsv(_backgroundHueOffset + (360.0_degf * yValue), 1.0f, 1.0f));*/
+      Color3 color = Color3::fromHsv(ColorHsv(_backgroundHueOffset + (360.0_degf * yValue), 1.0f, 1.0f));
       Color3 color = Color3({yValue});
       arrayAppend(_backgroundVertexColors, InPlaceInit, color);
     }
     _backgroundVertexColorBuffer.setData(_backgroundVertexColors, GL::BufferUsage::DynamicDraw);
-
+    */
     arrayResize(_backgroundData, 0);
     arrayAppend(_backgroundData, InPlaceInit,
                 _arcballCamera->viewMatrix() *
