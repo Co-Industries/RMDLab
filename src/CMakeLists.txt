@@ -45,14 +45,6 @@ find_package(Magnum REQUIRED
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
-
-#   Name of .exe file = magnum-octree 
-#add_executable(magnum-octree WIN32
-#    ./octree/LooseOctree.h
-#    ./octree/LooseOctree.cpp
-#    Octree.cpp
-#    ./arcball/ArcBall.cpp)
-
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
 add_executable(RMD 
     RMD.cpp
