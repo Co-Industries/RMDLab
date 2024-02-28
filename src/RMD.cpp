@@ -33,7 +33,11 @@
 #include "./octree/LooseOctree.h"
 #include "./arcball/ArcBall.h"
 
+#include "./scene/Scene.h"
+
 namespace Magnum
+
+/* CHANGE */
 {
   struct AtomData
   {
@@ -47,7 +51,6 @@ namespace Magnum
     Matrix4 transformationMatrix;
     Matrix3x3 normalMatrix;
     Color3 color;
-    /* CHANGE - MISSING ATOM INFO*/
   };
 
   struct BoxInstanceData
