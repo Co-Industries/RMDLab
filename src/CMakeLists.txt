@@ -40,19 +40,22 @@ find_package(Magnum REQUIRED
     MeshTools
     Primitives
     Shaders
+    SceneGraph
     Trade
     Sdl2Application)
 
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
-add_executable(RMD_v0.1.1.2 
-    RMD.cpp
+add_executable(RMD_v0.1.1.2_refactor #RMD_v0.1.1.2
+    RMD_refactor.cpp
     ./octree/LooseOctree.h
     ./octree/LooseOctree.cpp
-    ./arcball/Arcball.cpp)
+    ./arcball/Arcball.cpp
+    ./objects/Skybox.cpp
+    ./scene/Scene.cpp)
 
-target_link_libraries(RMD_v0.1.1.2 PRIVATE
+target_link_libraries(RMD_v0.1.1.2_refactor PRIVATE #RMD_v0.1.1.2
     Corrade::Main
     Corrade::Utility
     Magnum::Application
@@ -62,9 +65,10 @@ target_link_libraries(RMD_v0.1.1.2 PRIVATE
     Magnum::MeshTools
     Magnum::Primitives
     Magnum::Shaders
+    Magnum::SceneGraph
     Magnum::Trade)
 
-install(TARGETS RMD_v0.1.1.2 DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
+install(TARGETS RMD_v0.1.1.2_refactor DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 
 # Make the executable a default target to build & run in Visual Studio
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RMD)

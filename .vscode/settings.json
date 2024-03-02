@@ -72,5 +72,6 @@
   },
   "C_Cpp.errorSquiggles": "disabled",
   "C_Cpp.default.compilerPath": "C:\\msys64\\mingw64\\bin\\g++.exe",
-  "todo-tree.tree.showBadges": false
+  "todo-tree.tree.showBadges": false,
+  "cSpell.words": ["Vladimír"]
 }
