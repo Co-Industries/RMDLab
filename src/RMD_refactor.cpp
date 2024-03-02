@@ -47,6 +47,7 @@
 #include "./arcball/ArcBallCamera.h"
 
 #include "./objects/Skybox.h"
+#include "./objects/Grid.h"
 
 namespace Magnum
 
@@ -73,53 +74,17 @@ namespace Magnum
     Scene3D _scene;
     SceneGraph::DrawableGroup3D _drawables;
     Containers::Optional<ArcBallCamera> _arcballCamera;
-    /*
-    GL::Mesh _mesh{NoCreate};
-    */
-    /*
-     Shaders::FlatGL3D _shader{NoCreate};
-     */
+
     bool _paused = false;
     bool _skipFrame = false;
   };
-
-  /*
-  class FlatGLDrawable : public SceneGraph::Drawable3D
-  {
-  public:
-    explicit FlatGLDrawable(
-        Object3D &object,
-        Shaders::FlatGL3D &shader,
-        GL::Mesh &mesh,
-        SceneGraph::DrawableGroup3D &drawables) : SceneGraph::Drawable3D{object, &drawables},
-                                                  _shader(shader),
-                                                  _mesh(mesh) {}
-    void draw(const Matrix4 &transformation, SceneGraph::Camera3D &camera)
-    {
-      _shader
-          .setTransformationProjectionMatrix(camera.projectionMatrix() * transformation)
-          .draw(_mesh);
-    };
-
-  private:
-    Shaders::FlatGL3D &_shader;
-    GL::Mesh &_mesh;
-  };
-  */
-
   RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
   {
+    /* INFO Settings */
     Utility::Arguments args;
-    /*INFO Settings*/
-    args.addOption('s', "spheres", "75")
-        .setHelp("spheres", "number of spheres to simulate", "N")
-        .addOption('r', "sphere-radius", "0.1")
-        .setHelp("sphere-radius", "sphere radius", "R")
-        .addOption('v', "sphere-velocity", "0.3")
-        .setHelp("sphere-velocity", "sphere velocity", "V")
-        .addSkippedPrefix("magnum")
+    args.addSkippedPrefix("magnum")
         .parse(arguments.argc, arguments.argv);
-    /* Setup window and parameters */
+    /* INFO Window and parameters */
     {
       const Vector2 dpiScaling = this->dpiScaling({});
       Configuration conf;
@@ -136,35 +101,13 @@ namespace Magnum
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
-    /* Setup background */
+    /* INFO Background */
     {
-      auto skybox = new Skybox(_scene, _drawables);
-      
-      /*
-      const Trade::MeshData background = Primitives::icosphereSolid(4);
-      Trade::MeshData mutableBackground = MeshTools::copy(background);
-      MeshTools::flipFaceWindingInPlace(mutableBackground.mutableIndices());
-      _mesh = MeshTools::compile(mutableBackground);
-      _shader = Shaders::FlatGL3D{Shaders::FlatGL3D::Configuration{}.setFlags(Shaders::FlatGL3D::Flag::VertexColor)};
-      Containers::Array<Color3> colorData;
-      GL::Buffer vertices;
-      for (Vector3 vertex : mutableBackground.positions3DAsArray())
-      {
-        float yValue = (vertex.y() + 0.2f) / 8.0f + 0.3f;
-        arrayAppend(colorData, InPlaceInit, Color3({yValue}));
-      }
-
-      vertices.setData(MeshTools::interleave(mutableBackground.positions3DAsArray(), colorData));
-      _mesh.addVertexBuffer(std::move(vertices), 0, Shaders::FlatGL3D::Position{}, Shaders::FlatGL3D::Color3{});
-      auto object = new Object3D{&_scene};
-      new FlatGLDrawable{*object, _shader, _mesh, _drawables};
-      */
-      /* INFO Flip Normals (maybe useful)
-      MeshTools::flipNormalsInPlace(_backgroundMeshDataMutable.mutableAttribute<Vector3>(Trade::MeshAttribute::Normal));
-      */
+      new Skybox(_scene, _drawables, 30.0f);
+      new Grid(_scene, _drawables, 5.0f, Vector2i{16}, Color3{0.7f});
     }
 
-    /* Set up camera*/
+    /* INFO Camera */
     {
       const Vector3 eye = Vector3::zAxis(5.0f);
       const Vector3 center{};
@@ -174,8 +117,7 @@ namespace Magnum
       _arcballCamera->setLagging(0.85f);
     }
 
-    /* Loop at 60 Hz max */
-    /* 16 */
+    /* Loop at 60 Hz max (16)*/
     setSwapInterval(1);
     setMinimalLoopPeriod(16);
   }
@@ -188,7 +130,7 @@ namespace Magnum
     {
       _skipFrame = false;
     }
-    /* Update camera before drawing instances */
+    /* Update camera */
     bool camChanged = _arcballCamera->update();
     _arcballCamera->draw(_drawables);
     swapBuffers();
