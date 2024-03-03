@@ -61,6 +61,7 @@ namespace Magnum
     args.addSkippedPrefix("magnum")
         .parse(arguments.argc, arguments.argv);
     /* INFO Window and parameters */
+    /* TESTING VERSIONING 1*/
     {
       const Vector2 dpiScaling = this->dpiScaling({});
       Configuration conf;
