@@ -1,50 +1,26 @@
-#include <Corrade/Containers/GrowableArray.h>
+
+/* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
+
 #include <Corrade/Containers/Optional.h>
-#include <Corrade/Containers/Pointer.h>
 #include <Corrade/Utility/Arguments.h>
 
-#include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/DebugTools/FrameProfiler.h>
-#include <Magnum/DebugTools/ColorMap.h>
-
 #include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/GL/Mesh.h>
 #include <Magnum/GL/Renderer.h>
-#include <Magnum/GL/Texture.h>
-#include <Magnum/GL/TextureFormat.h>
-#include <Magnum/GL/PixelFormat.h>
 
 #include <Magnum/Math/Color.h>
-#include <Magnum/Math/Matrix4.h>
+#include <Magnum/Math/Vector.h>
 
-#include <Magnum/Primitives/Icosphere.h>
-#include <Magnum/Primitives/Cube.h>
-#include <Magnum/Primitives/Grid.h>
+#include <Magnum/Platform/Sdl2Application.h>
 
-#include <Magnum/Shaders/FlatGL.h>
-#include <Magnum/Shaders/VertexColorGL.h>
-#include <Magnum/Shaders/MeshVisualizerGL.h>
-#include <Magnum/Shaders/PhongGL.h>
-
-#include <Magnum/Trade/MeshData.h>
-#include <Magnum/Trade/Data.h>
-
-#include <Magnum/MeshTools/Compile.h>
-#include <Magnum/MeshTools/Interleave.h>
-#include <Magnum/MeshTools/FlipNormals.h>
-#include <Magnum/MeshTools/Copy.h>
-#include <Magnum/MeshTools/Transform.h>
-
-#include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
-#include <Magnum/SceneGraph/AbstractTranslationRotation3D.h>
 #include <Magnum/SceneGraph/Object.h>
 #include <Magnum/SceneGraph/Scene.h>
 
-#include "./octree/LooseOctree.h"
+#include "Version.h"
 #include "./arcball/ArcBall.h"
 #include "./arcball/ArcBallCamera.h"
+#include "./octree/LooseOctree.h"
 
 #include "./objects/Skybox.h"
 #include "./objects/Grid.h"
@@ -88,7 +64,7 @@ namespace Magnum
     {
       const Vector2 dpiScaling = this->dpiScaling({});
       Configuration conf;
-      conf.setTitle("RMD v0.1.3.0")
+      conf.setTitle(std::string("RMD ") + std::string(RMD_VERSION))
           .setSize(conf.size(), dpiScaling)
           .setWindowFlags(Configuration::WindowFlag::Resizable);
       GLConfiguration glConf;

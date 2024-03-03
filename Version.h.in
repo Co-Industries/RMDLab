@@ -1,0 +1,4 @@
+#ifndef RMD_VERSION_H
+#define RMD_VERSION_H
+#define RMD_VERSION "@RMD_VERSION@"
+#endif /* RMD_Version_h */

@@ -1,10 +1,14 @@
 #ifndef RMD_Skybox_h
 #define RMD_Skybox_h
 
-#include <Magnum/SceneGraph/Scene.h>
-#include <Magnum/SceneGraph/MatrixTransformation3D.h>
+#include <Magnum/GL/Mesh.h>
+
 #include <Magnum/SceneGraph/Drawable.h>
+#include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Object.h>
+#include <Magnum/SceneGraph/Scene.h>
+
+#include <Magnum/Shaders/FlatGL.h>
 
 namespace Magnum
 {

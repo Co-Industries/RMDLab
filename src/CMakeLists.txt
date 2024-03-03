@@ -47,7 +47,7 @@ find_package(Magnum REQUIRED
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
-add_executable(RMD_v0.1.3.0
+add_executable(RMD
     RMD_refactor.cpp
     ./octree/LooseOctree.h
     ./octree/LooseOctree.cpp
@@ -56,7 +56,9 @@ add_executable(RMD_v0.1.3.0
     ./objects/Grid.cpp
     ./scene/Scene.cpp)
 
-target_link_libraries(RMD_v0.1.3.0 PRIVATE
+add_dependencies(RMD version)
+
+target_link_libraries(RMD PRIVATE
     Corrade::Main
     Corrade::Utility
     Magnum::Application
@@ -69,7 +71,7 @@ target_link_libraries(RMD_v0.1.3.0 PRIVATE
     Magnum::SceneGraph
     Magnum::Trade)
 
-install(TARGETS RMD_v0.1.3.0 DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
+install(TARGETS RMD DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 
 # Make the executable a default target to build & run in Visual Studio
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RMD)

@@ -1,15 +1,16 @@
 #ifndef RMD_Scene_h
 #define RMD_Scene_h
 
+#include <Magnum/GL/Mesh.h>
 #include <Magnum/Math/Matrix4.h>
 
-#include <Magnum/Shaders/FlatGL.h>
-
+#include <Magnum/SceneGraph/Camera.h>
+#include <Magnum/SceneGraph/Drawable.h>
+#include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Object.h>
 #include <Magnum/SceneGraph/Scene.h>
-#include <Magnum/SceneGraph/MatrixTransformation3D.h>
-#include <Magnum/SceneGraph/Drawable.h>
-#include <Magnum/SceneGraph/Camera.h>
+
+#include <Magnum/Shaders/FlatGL.h>
 
 namespace Magnum
 {

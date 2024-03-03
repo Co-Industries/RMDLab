@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
 project(RMD)
-
+include_directories(${CMAKE_BINARY_DIR})
+find_package(Git)
+add_custom_target(version
+    ${CMAKE_COMMAND} -D SRC=${CMAKE_SOURCE_DIR}/Version.h.in
+                        -D DST=${CMAKE_BINARY_DIR}/Version.h
+                        -D GIT_EXECUTABLE=${GIT_EXECUTABLE}
+                        -P ${CMAKE_SOURCE_DIR}/GenerateVersionHeader.cmake
+)    
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/" ${CMAKE_MODULE_PATH})
 
 # Add Corrade as a subproject

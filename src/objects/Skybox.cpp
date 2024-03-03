@@ -1,22 +1,17 @@
-#include <Magnum/Trade/MeshData.h>
-
-#include <Magnum/MeshTools/Compile.h>
-#include <Magnum/MeshTools/Interleave.h>
-#include <Magnum/MeshTools/FlipNormals.h>
-#include <Magnum/MeshTools/Copy.h>
-#include <Magnum/MeshTools/Transform.h>
-
-#include <Magnum/Shaders/FlatGL.h>
-#include <Magnum/Primitives/Icosphere.h>
-#include <Magnum/GL/Mesh.h>
-#include <Magnum/SceneGraph/Drawable.h>
-#include <Magnum/SceneGraph/Scene.h>
-#include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Corrade/Containers/GrowableArray.h>
 
 #include <Magnum/Math/Color.h>
-#include <Magnum/Math/Vector.h>
 #include <Magnum/Math/Matrix4.h>
+#include <Magnum/Math/Vector.h>
+
+#include <Magnum/MeshTools/Compile.h>
+#include <Magnum/MeshTools/Copy.h>
+#include <Magnum/MeshTools/FlipNormals.h>
+#include <Magnum/MeshTools/Interleave.h>
+#include <Magnum/MeshTools/Transform.h>
+
+#include <Magnum/Primitives/Icosphere.h>
+#include <Magnum/Trade/MeshData.h>
 
 #include "Skybox.h"
 #include "../scene/Scene.h"

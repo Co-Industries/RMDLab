@@ -1,13 +1,11 @@
-#include <Magnum/Math/Color.h>
-#include <Magnum/Math/Vector.h>
 #include <Magnum/Math/Matrix4.h>
-
-#include <Magnum/Trade/MeshData.h>
-#include <Magnum/Primitives/Grid.h>
 
 #include <Magnum/MeshTools/Compile.h>
 #include <Magnum/Meshtools/Copy.h>
 #include <Magnum/MeshTools/Transform.h>
+
+#include <Magnum/Primitives/Grid.h>
+#include <Magnum/Trade/MeshData.h>
 
 #include "Grid.h"
 #include "../scene/Scene.h"
