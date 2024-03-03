@@ -93,12 +93,23 @@ void ArcBall::setLagging(const Float lagging) {
     _lagging = lagging;
 }
 
-void ArcBall::initTransformation(const Vector2i& mousePos) {
+void ArcBall::initTransformation(const Vector2i &mousePos, const int &mode)
+{
     _prevMousePosNDC = screenCoordToNDC(mousePos);
+    if (mode == 1)
+        _prevMousePosNDC = {_prevMousePosNDC.x(), 0.0f};
+    else if (mode == 2)
+        _prevMousePosNDC = {0.0f, _prevMousePosNDC.y()};
 }
 
-void ArcBall::rotate(const Vector2i& mousePos) {
-    const Vector2 mousePosNDC = screenCoordToNDC(mousePos);
+void ArcBall::rotate(const Vector2i &mousePos, const int &mode)
+{
+    Vector2 mousePosNDC = screenCoordToNDC(mousePos);
+    /* TODO Change how modes work (maybe reset camera)*/
+    if (mode == 1)
+        mousePosNDC = {mousePosNDC.x(), 0.0f};
+    else if (mode == 2)
+        mousePosNDC = {0.0f, mousePosNDC.y()};
     const Quaternion currentQRotation = ndcToArcBall(mousePosNDC);
     const Quaternion prevQRotation = ndcToArcBall(_prevMousePosNDC);
     _prevMousePosNDC = mousePosNDC;
@@ -173,8 +184,8 @@ void ArcBall::updateInternalTransformations() {
 }
 
 Vector2 ArcBall::screenCoordToNDC(const Vector2i& mousePos) const {
-    return {mousePos.x()*2.0f/_windowSize.x() - 1.0f,
-            1.0f - 2.0f*mousePos.y()/ _windowSize.y()};
+    return {mousePos.x() * 2.0f / _windowSize.x() - 1.0f,
+            1.0f - 2.0f * mousePos.y() / _windowSize.y()};
 }
 
 }

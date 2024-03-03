@@ -1,6 +1,7 @@
 
 /* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 
+#include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Optional.h>
 #include <Corrade/Utility/Arguments.h>
 
@@ -20,8 +21,6 @@
 #include "Version.h"
 #include "./arcball/ArcBall.h"
 #include "./arcball/ArcBallCamera.h"
-#include "./octree/LooseOctree.h"
-
 #include "./objects/Skybox.h"
 #include "./objects/Grid.h"
 
@@ -61,7 +60,6 @@ namespace Magnum
     args.addSkippedPrefix("magnum")
         .parse(arguments.argc, arguments.argv);
     /* INFO Window and parameters */
-    /* TESTING VERSIONING 2*/
     {
       const Vector2 dpiScaling = this->dpiScaling({});
       Configuration conf;
@@ -125,24 +123,23 @@ namespace Magnum
 
   void RMD::keyPressEvent(KeyEvent &event)
   {
-    if (event.key() == KeyEvent::Key::B)
+    switch (event.key())
     {
+    case KeyEvent::Key::B:
       /*_drawBoundingBoxes ^= true;*/
-    }
-    else if (event.key() == KeyEvent::Key::R)
-    {
+      break;
+    case KeyEvent::Key::R:
       _arcballCamera->reset();
-    }
-    else if (event.key() == KeyEvent::Key::Space)
-    {
+      break;
+    case KeyEvent::Key::Space:
       _paused ^= true;
-    }
-    else if (event.key() == KeyEvent::Key::Right)
-    {
+      break;
+    case KeyEvent::Key::Right:
       _skipFrame = true;
-    }
-    else
+      break;
+    default:
       return;
+    }
 
     event.setAccepted();
     redraw();
@@ -153,7 +150,13 @@ namespace Magnum
     /* Enable mouse capture so the mouse can drag outside of the window */
     /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
     SDL_CaptureMouse(SDL_TRUE);
-    _arcballCamera->initTransformation(event.position());
+
+    if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
+      _arcballCamera->initTransformation(event.position(), 1);
+    else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
+      _arcballCamera->initTransformation(event.position(), 2);
+    else
+      _arcballCamera->initTransformation(event.position(), 0);
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */
   }
@@ -172,8 +175,12 @@ namespace Magnum
 
     if (event.modifiers() & MouseMoveEvent::Modifier::Shift)
       _arcballCamera->translate(event.position());
+    else if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
+      _arcballCamera->rotate(event.position(), 1);
+    else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
+      _arcballCamera->rotate(event.position(), 2);
     else
-      _arcballCamera->rotate(event.position());
+      _arcballCamera->rotate(event.position(), 0);
 
     event.setAccepted();
     redraw(); /* camera has changed, redraw! */

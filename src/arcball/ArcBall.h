@@ -68,11 +68,11 @@ class ArcBall {
 
         /* Initialize the first (screen) mouse position for camera
            transformation. This should be called in mouse pressed event. */
-        void initTransformation(const Vector2i& mousePos);
+        void initTransformation(const Vector2i &mousePos, const int &mode);
 
         /* Rotate the camera from the previous (screen) mouse position to the
            current (screen) position */
-        void rotate(const Vector2i& mousePos);
+        void rotate(const Vector2i &mousePos, const int &mode);
 
         /* Translate the camera from the previous (screen) mouse position to
            the current (screen) mouse position */
