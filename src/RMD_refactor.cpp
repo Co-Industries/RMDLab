@@ -3,6 +3,7 @@
 
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Optional.h>
+#include <Corrade/Containers/Pointer.h>
 #include <Corrade/Utility/Arguments.h>
 
 #include <Magnum/GL/DefaultFramebuffer.h>
@@ -23,13 +24,11 @@
 #include "./arcball/ArcBallCamera.h"
 #include "./objects/Skybox.h"
 #include "./objects/Grid.h"
+#include "./simulation/Simulation.h"
 
 namespace Magnum
 
 {
-  using Object3D = SceneGraph::Object<SceneGraph::MatrixTransformation3D>;
-  using Scene3D = SceneGraph::Scene<SceneGraph::MatrixTransformation3D>;
-
   using namespace Math::Literals;
 
   class RMD : public Platform::Application
@@ -49,7 +48,9 @@ namespace Magnum
     Scene3D _scene;
     SceneGraph::DrawableGroup3D _drawables;
     Containers::Optional<ArcBallCamera> _arcballCamera;
+    Containers::Pointer<Simulation> _simulation;
 
+    bool _drawOctreeBounds = true;
     bool _paused = false;
     bool _skipFrame = false;
   };
@@ -76,10 +77,11 @@ namespace Magnum
     GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
     GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
-    /* INFO Background */
+    /* INFO Initialize scene objects */
     {
       new Skybox(_scene, _drawables, 30.0f);
       new Grid(_scene, _drawables, 5.0f, Vector2i{16}, Color3{0.7f});
+      _simulation.emplace(_scene, _drawables, 10, _drawOctreeBounds);
     }
 
     /* INFO Camera */
@@ -104,6 +106,8 @@ namespace Magnum
     if (!_paused || _skipFrame)
     {
       _skipFrame = false;
+      _simulation->updateOctree();
+      _simulation->updateAtoms();
     }
     /* Update camera */
     bool camChanged = _arcballCamera->update();
@@ -126,7 +130,7 @@ namespace Magnum
     switch (event.key())
     {
     case KeyEvent::Key::B:
-      /*_drawBoundingBoxes ^= true;*/
+      _drawOctreeBounds ^= true;
       break;
     case KeyEvent::Key::R:
       _arcballCamera->reset();

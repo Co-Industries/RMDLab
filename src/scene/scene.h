@@ -11,6 +11,7 @@
 #include <Magnum/SceneGraph/Scene.h>
 
 #include <Magnum/Shaders/FlatGL.h>
+#include <Magnum/Shaders/PhongGL.h>
 
 namespace Magnum
 {
@@ -25,6 +26,18 @@ namespace Magnum
 
     protected:
         Shaders::FlatGL3D &_shader;
+        GL::Mesh &_mesh;
+    };
+
+    class AtomDrawable : public SceneGraph::Drawable3D
+    {
+    public:
+        explicit AtomDrawable(Object3D &object, Shaders::PhongGL &shader, GL::Mesh &mesh, SceneGraph::DrawableGroup3D &drawables);
+
+        void draw(const Matrix4 &transformation, SceneGraph::Camera3D &camera);
+
+    protected:
+        Shaders::PhongGL &_shader;
         GL::Mesh &_mesh;
     };
 }

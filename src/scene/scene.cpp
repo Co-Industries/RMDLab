@@ -17,4 +17,20 @@ namespace Magnum
             .setTransformationProjectionMatrix(camera.projectionMatrix() * transformation)
             .draw(_mesh);
     };
+
+    AtomDrawable::AtomDrawable(Object3D &object,
+                               Shaders::PhongGL &shader,
+                               GL::Mesh &mesh,
+                               SceneGraph::DrawableGroup3D &drawables) : SceneGraph::Drawable3D{object, &drawables},
+                                                                         _shader(shader),
+                                                                         _mesh(mesh) {}
+
+    void AtomDrawable::draw(const Matrix4 &transformation, SceneGraph::Camera3D &camera)
+    {
+        _shader
+            .setTransformationMatrix(transformation)
+            .setProjectionMatrix(camera.projectionMatrix())
+            .setNormalMatrix(transformation.normalMatrix())
+            .draw(_mesh);
+    }
 }

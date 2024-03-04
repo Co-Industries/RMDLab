@@ -54,7 +54,8 @@ add_executable(RMD
     ./arcball/Arcball.cpp
     ./objects/Skybox.cpp
     ./objects/Grid.cpp
-    ./scene/Scene.cpp)
+    ./scene/Scene.cpp
+    ./simulation/Simulation.cpp)
 
 add_dependencies(RMD version)
 

@@ -2,9 +2,7 @@
 #define RMD_Grid_h
 
 #include <Magnum/GL/Mesh.h>
-
 #include <Magnum/Math/Color.h>
-#include <Magnum/Math/Vector.h>
 
 #include <Magnum/SceneGraph/Scene.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
