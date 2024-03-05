@@ -81,7 +81,7 @@ namespace Magnum
     {
       new Skybox(_scene, _drawables, 30.0f);
       new Grid(_scene, _drawables, 5.0f, Vector2i{16}, Color3{0.7f});
-      _simulation.emplace(_scene, _drawables, 10, _drawOctreeBounds);
+      _simulation.emplace(_scene, _drawables, 100, _drawOctreeBounds);
     }
 
     /* INFO Camera */
@@ -106,6 +106,7 @@ namespace Magnum
     if (!_paused || _skipFrame)
     {
       _skipFrame = false;
+
       _simulation->updateOctree();
       _simulation->updateAtoms();
     }
@@ -115,7 +116,7 @@ namespace Magnum
     swapBuffers();
 
     /* If the camera is moving or the animation is running, redraw immediately */
-    if (camChanged)
+    if (camChanged || !_paused || _skipFrame)
       redraw();
   }
 

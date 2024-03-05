@@ -60,6 +60,7 @@ namespace Magnum
         Containers::Array<AtomInstanceData> _atomInstanceData;
         Containers::Array<Vector3> _atomPositions;
         Containers::Array<Vector3> _atomVelocities;
+        GL::Buffer _atomInstanceBuffer;
         Float _atomRadius, _atomVelocity;
         UnsignedInt _atomCount;
 

@@ -47,12 +47,15 @@ namespace Magnum
         _atomShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
                                            .setFlags(Shaders::PhongGL::Flag::VertexColor |
                                                      Shaders::PhongGL::Flag::InstancedTransformation)};
-        GL::Buffer _atomInstanceBuffer = GL::Buffer{};
+        _atomShader.setShininess(3.0f);
+        _atomShader.setSpecularColor(Color3({0.4}));
+        _atomInstanceBuffer = GL::Buffer{};
         _atomMesh = MeshTools::compile(Primitives::icosphereSolid(2));
         _atomMesh.addVertexBufferInstanced(_atomInstanceBuffer, 1, 0,
                                            Shaders::PhongGL::TransformationMatrix{},
                                            Shaders::PhongGL::NormalMatrix{},
                                            Shaders::PhongGL::Color3{});
+        _atomInstanceBuffer.setData(_atomInstanceData, GL::BufferUsage::DynamicDraw); /*prevent crash*/
         _atomMesh.setInstanceCount(_atomInstanceData.size());
         auto atomObject = new Object3D{&_scene};
         new AtomDrawable{*atomObject, _atomShader, _atomMesh, _drawables};
@@ -72,6 +75,9 @@ namespace Magnum
         _octreeMesh.addVertexBufferInstanced(_octreeInstanceBuffer, 1, 0,
                                              Shaders::FlatGL3D::TransformationMatrix{},
                                              Shaders::FlatGL3D::Color3{});
+        /*prevent crash*/
+        _octreeInstanceBuffer.setData(_octreeInstanceData, GL::BufferUsage::DynamicDraw);
+        _octreeMesh.setInstanceCount(_octreeInstanceData.size());
         auto octreeObject = new Object3D{&_scene};
         new FlatGLDrawable{*octreeObject, _octreeShader, _octreeMesh, _drawables};
     }
@@ -133,23 +139,22 @@ namespace Magnum
             if (j > i)
             {
                 const Vector3 qpos = _atomPositions[j];
-                const Vector3 pospq = ppos - qpos;
                 const Vector3 qvel = _atomVelocities[j];
                 const Vector3 velpq = pvel - qvel;
+                const Vector3 pospq = ppos - qpos;
                 const Float vp = Math::dot(velpq, pospq);
                 /* INFO Velocity vector, to stop attraction*/
-                if (vp >= 0.0f)
+                if (vp < 0.0f)
                 {
-                    continue;
-                }
-                const Float dpq = pospq.length();
-                if (dpq < 2.0f * _atomRadius)
-                {
+                    const Float dpq = pospq.length();
+                    if (dpq < 2.0f * _atomRadius)
+                    {
 
-                    /* INFO - Collisions*/
-                    const Vector3 vNormal = vp * pospq / (dpq * dpq);
-                    _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
-                    _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
+                        /* INFO - Collisions*/
+                        const Vector3 vNormal = vp * pospq / (dpq * dpq);
+                        _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
+                        _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
+                    }
                 }
             }
         }
@@ -172,10 +177,12 @@ namespace Magnum
             _atomPositions[i] = pos;
             _atomInstanceData[i].transformationMatrix.translation() = pos;
         }
+        _atomInstanceBuffer.setData(_atomInstanceData, GL::BufferUsage::DynamicDraw);
     }
 
     void Simulation::updateOctree()
     {
+        octreeCollisionDetection();
         _octree->update();
         arrayResize(_octreeInstanceData, 0);
         arrayAppend(_octreeInstanceData, InPlaceInit,
@@ -185,6 +192,7 @@ namespace Magnum
 
         if (_drawOctreeBounds)
         {
+
             const auto &activeTreeNodeBlocks = _octree->activeTreeNodeBlocks();
             for (OctreeNodeBlock *const pNodeBlock : activeTreeNodeBlocks)
             {
