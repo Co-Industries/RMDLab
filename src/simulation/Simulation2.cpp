@@ -20,8 +20,8 @@ namespace Magnum
                                                                             _atomCount(atomCount),
                                                                             _drawOctreeBounds(drawOctreeBounds)
     {
-        _atomRadius = 0.02f;
-        _atomVelocity = 2.0f;
+        _atomRadius = 0.1f;
+        _atomVelocity = 0.3f;
 
         _atomPositions = Containers::Array<Vector3>{NoInit, _atomCount};
         _atomVelocities = Containers::Array<Vector3>{NoInit, _atomCount};
