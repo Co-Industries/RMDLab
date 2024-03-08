@@ -13,7 +13,7 @@
 #include <Magnum/Trade/MeshData.h>
 
 #include "Skybox.h"
-#include "../scene/Scene.h"
+#include "../components/scene/Scene.h"
 
 namespace Magnum
 {

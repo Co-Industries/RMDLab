@@ -20,11 +20,12 @@
 #include <Magnum/SceneGraph/Scene.h>
 
 #include "Version.h"
-#include "./arcball/ArcBall.h"
-#include "./arcball/ArcBallCamera.h"
-#include "./objects/Skybox.h"
-#include "./objects/Grid.h"
-#include "./simulation/Simulation.h"
+#include "./components/arcball/ArcBall.h"
+#include "./components/arcball/ArcBallCamera.h"
+#include "./content/Skybox.h"
+#include "./content/Grid.h"
+#include "./core/Simulation_old.h"
+#include "./core/Simulation.h"
 
 namespace Magnum
 
@@ -48,14 +49,15 @@ namespace Magnum
     Scene3D _scene;
     SceneGraph::DrawableGroup3D _drawables;
     Containers::Optional<ArcBallCamera> _arcballCamera;
-    Containers::Pointer<Simulation> _simulation;
+    Containers::Pointer<SimulationOld> _simulation;
 
     bool _drawOctreeBounds = true;
-    bool _paused = false;
+    bool _paused = true;
     bool _skipFrame = false;
   };
   RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
   {
+
     /* INFO Settings */
     Utility::Arguments args;
     args.addSkippedPrefix("magnum")
@@ -80,8 +82,8 @@ namespace Magnum
     /* INFO Initialize scene objects */
     {
       new Skybox(_scene, _drawables, 30.0f);
-      new Grid(_scene, _drawables, 5.0f, Vector2i{16}, Color3{0.7f});
-      _simulation.emplace(_scene, _drawables, 1000, _drawOctreeBounds);
+      new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
+      _simulation.emplace(_scene, _drawables, 500, _drawOctreeBounds);
     }
 
     /* INFO Camera */

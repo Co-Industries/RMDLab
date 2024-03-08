@@ -6,26 +6,28 @@
 
 #include <Magnum/Trade/MeshData.h>
 
-#include "Simulation.h"
-#include "../scene/Scene.h"
+#include "Simulation_old.h"
+#include "../components/scene/Scene.h"
+#include "../functions/BO.h"
 
 namespace Magnum
 {
     using namespace Math::Literals;
 
-    Simulation::Simulation(Scene3D &scene,
-                           SceneGraph::DrawableGroup3D &drawables,
-                           UnsignedInt atomCount, bool &drawOctreeBounds) : _scene(scene),
-                                                                            _drawables(drawables),
-                                                                            _atomCount(atomCount),
-                                                                            _drawOctreeBounds(drawOctreeBounds)
+    SimulationOld::SimulationOld(Scene3D &scene,
+                                 SceneGraph::DrawableGroup3D &drawables,
+                                 UnsignedInt atomCount, bool &drawOctreeBounds) : _scene(scene),
+                                                                                  _drawables(drawables),
+                                                                                  _atomCount(atomCount),
+                                                                                  _drawOctreeBounds(drawOctreeBounds)
     {
-        _atomRadius = 0.1f;
-        _atomVelocity = 0.3f;
+        new BO();
+        _atomRadius = 0.02f;
+        _atomVelocity = 0.5f;
 
         _atomPositions = Containers::Array<Vector3>{NoInit, _atomCount};
         _atomVelocities = Containers::Array<Vector3>{NoInit, _atomCount};
-        _atomInstanceData = Containers::Array<AtomInstanceData>{NoInit, _atomCount};
+        _atomInstanceData = Containers::Array<AtomInstanceDataOld>{NoInit, _atomCount};
 
         for (std::size_t i = 0; i < _atomCount; ++i)
         {
@@ -82,7 +84,7 @@ namespace Magnum
         new FlatGLDrawable{*octreeObject, _octreeShader, _octreeMesh, _drawables};
     }
 
-    void Simulation::octreeCollisionDetection()
+    void SimulationOld::octreeCollisionDetection()
     {
         const OctreeNode &rootNode = _octree->rootNode();
         for (std::size_t i = 0; i < _atomPositions.size(); ++i)
@@ -93,7 +95,7 @@ namespace Magnum
         }
     }
 
-    bool Simulation::findCollision(const Containers::Array<Int> &collisions, Int value)
+    bool SimulationOld::findCollision(const Containers::Array<Int> &collisions, Int value)
     {
         for (Int collision : collisions)
         {
@@ -105,7 +107,7 @@ namespace Magnum
         return false;
     }
 
-    void Simulation::removeCollision(Containers::Array<Int> &collisions, Int value)
+    void SimulationOld::removeCollision(Containers::Array<Int> &collisions, Int value)
     {
         arrayResize(collisions, 0);
         for (Int collision : collisions)
@@ -118,8 +120,8 @@ namespace Magnum
         }
     }
 
-    void Simulation::checkCollisionWithSubTree(const OctreeNode &node,
-                                               std::size_t i, const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds)
+    void SimulationOld::checkCollisionWithSubTree(const OctreeNode &node,
+                                                  std::size_t i, const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds)
     {
         if (!node.looselyOverlaps(bounds))
             return;
@@ -160,7 +162,7 @@ namespace Magnum
         }
     }
 
-    void Simulation::updateAtoms()
+    void SimulationOld::updateAtoms()
     {
         constexpr Float dt = 1.0f / 120.0f;
 
@@ -180,7 +182,7 @@ namespace Magnum
         _atomInstanceBuffer.setData(_atomInstanceData, GL::BufferUsage::DynamicDraw);
     }
 
-    void Simulation::updateOctree()
+    void SimulationOld::updateOctree()
     {
         octreeCollisionDetection();
         _octree->update();

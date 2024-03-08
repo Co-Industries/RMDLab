@@ -7,7 +7,7 @@
 #include <Magnum/Trade/MeshData.h>
 
 #include "Simulation.h"
-#include "../scene/Scene.h"
+#include "../components/scene/Scene.h"
 
 namespace Magnum
 {

@@ -49,13 +49,15 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
 add_executable(RMD
     RMD_refactor.cpp
-    ./octree/LooseOctree.h
-    ./octree/LooseOctree.cpp
-    ./arcball/Arcball.cpp
-    ./objects/Skybox.cpp
-    ./objects/Grid.cpp
-    ./scene/Scene.cpp
-    ./simulation/Simulation.cpp)
+    ./components/octree/LooseOctree.h
+    ./components/octree/LooseOctree.cpp
+    ./components/arcball/Arcball.cpp
+    ./content/Skybox.cpp
+    ./content/Grid.cpp
+    ./components/scene/Scene.cpp
+    ./core/Simulation.cpp
+    ./core/Simulation_old.cpp
+    ./functions/BO.cpp)
 
 add_dependencies(RMD version)
 

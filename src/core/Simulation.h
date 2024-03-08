@@ -18,7 +18,7 @@
 #include <Magnum/Shaders/FlatGL.h>
 #include <Magnum/Shaders/PhongGL.h>
 
-#include "../octree/LooseOctree.h"
+#include "../components/octree/LooseOctree.h"
 
 namespace Magnum
 {
