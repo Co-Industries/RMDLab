@@ -8,7 +8,6 @@
 
 #include "Simulation_old.h"
 #include "../components/scene/Scene.h"
-#include "../functions/BO.h"
 
 namespace Magnum
 {
@@ -21,7 +20,7 @@ namespace Magnum
                                                                                   _atomCount(atomCount),
                                                                                   _drawOctreeBounds(drawOctreeBounds)
     {
-        new BO();
+        Debug{} << "HI!";
         _atomRadius = 0.02f;
         _atomVelocity = 0.5f;
 
