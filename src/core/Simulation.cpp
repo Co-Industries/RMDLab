@@ -4,5 +4,8 @@
 
 namespace Magnum
 {
-    Simulation::Simulation(){};
+    Simulation::Simulation()
+    {
+        Debug{} << "HI!";
+    }
 }
