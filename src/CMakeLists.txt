@@ -30,6 +30,8 @@
 
 cmake_minimum_required(VERSION 3.5)
 
+find_package(MagnumIntegration REQUIRED ImGui)
+
 find_package(Corrade REQUIRED
     Main
     Utility)
@@ -72,7 +74,8 @@ target_link_libraries(RMD PRIVATE
     Magnum::Primitives
     Magnum::Shaders
     Magnum::SceneGraph
-    Magnum::Trade)
+    Magnum::Trade
+    MagnumIntegration::ImGui)
 
 install(TARGETS RMD DESTINATION ${MAGNUM_BINARY_INSTALL_DIR})
 

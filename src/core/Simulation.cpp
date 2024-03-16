@@ -13,7 +13,7 @@ namespace Magnum
         Debug{} << "Simulation has started";
     }
 
-    Simulation::GetParams()
+    void Simulation::GetParams()
     {
         Int i, j, inxn;
         Int i0, i1, i2, i3, i4, ih;
