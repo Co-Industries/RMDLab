@@ -10,6 +10,7 @@
 #include <Magnum/Math/Range.h>
 #include <Magnum/Math/Constants.h>
 #include <Magnum/Math/Vector.h>
+#include <Magnum/Math/Color.h>
 #include <Magnum/Magnum.h>
 
 namespace Magnum
@@ -20,6 +21,7 @@ namespace Magnum
     {
     public:
         explicit Simulation();
+        void GetParams();
 
     protected:
         Containers::Array<UnsignedInt> _atype; /* Atom type [H, He, Na, C, O, ...] */
@@ -106,7 +108,8 @@ namespace Magnum
         /* constexpr int MODE_COPY = 1, MODE_MOVE = 2, MODE_CPBK = 3, MODE_QCOPY1 = 4, MODE_QCOPY2 = 5; */
 
         /* <NE_COPY>,<NE_MOVE>,<NE_CPBK> :: Number of Elements to COPY, MOVE atoms and copy back force */
-        const enum MODE {
+        enum MODE
+        {
             MODE_COPY = 1,
             MODE_MOVE,
             MODE_CPBK,
@@ -117,7 +120,7 @@ namespace Magnum
         const Int MAXLAYERS = 5; /* MAXimum # of linkedlist cell LAYERS. */
         const Int MAXLAYERS_NB = 10;
         Containers::StaticArray<6, Int> target_node; /* stores partner node ID in the 6-communications, if targe_node(i)==-1, the node doesn't have a partner in i-direction. */
-        Containers::StaticArray<3, Int> vprocs;      /* For benchmarking, <vprocs> and <mc> will be read from vprocs.in */
+        Containers::StaticArray<3, Int> vprocs{1, 1, 1}; /* For benchmarking, <vprocs> and <mc> will be read from vprocs.in */
         Containers::StaticArray<3, Int> mc;          /* # of unit cells in each directions */
         Containers::Array<Double> rc, rc2;           /* cutoff length for sigma-bonding. */
         Containers::Array<Double> rcpi, rcpp;        /* cutoff length for other bonding. */
@@ -255,26 +258,25 @@ namespace Magnum
 
         // QEq variables
         // <isQEq> flag to run QEq routine: 0-No QEq, 1-CG, 2-Extended Lagrangian
-        Int isQEq;
+        Int isQEq = 1; // ! from rxmd.in
         // <NMAXQEq> Number of MAXimum iteration in QEq routine
-        Int NMAXQEq;
+        Int NMAXQEq = 500; // ! from rxmd.in
         // <QEq_thrsld> energy criterion in QEq routine
-        Double QEq_tol;
+        Double QEq_tol = 1.0e-7; // ! from rxmd.in
         // <nstep_qeq> counter of iteration
-        Int nstep_qeq, qstep;
+        Int nstep_qeq, qstep = 1; // ! from rxmd.in
 
         // <mdmode> determines MD mode
-        Int mdmode;
+        Int mdmode = 1; // ! from rxmd.in
         // <nstep> current MD step, <ntime_step> Total # of time steps in one MD run.
         // <current_step> will be used for subsequent runs.
-        Int nstep = 0, ntime_step, current_step;
-        // <vsfact> velocity scaling factor, <dt> one time step
-        Double treq, vsfact, dt, dmt;
-        Int sstep;
+        Int nstep = 0, ntime_step = 100, current_step; // ! <ntime_step> from rxmd.in
+        // <vsfact> velocity scaling factor, <dt> one time step, <treq> temperature
+        Double treq = 300.0, vsfact = 1.0, dt = 0.25, dmt; // ! <dt> from rxmd.in
+        Int sstep = 100;                                   // ! from rxmd.in
 
         // output format flags, explained in 'rxmdopt.in'
-        int fstep, pstep;
-
+        Int fstep = 100, pstep = 10; // ! from rxmd.in
         // FoRCe INDeX. Index to return calculated force to original atoms
         Containers::Array<Double> frcindx;
         Containers::StaticArray<7, Int> copyptr;
@@ -284,7 +286,8 @@ namespace Magnum
         Int ia, ja; // Atomic stress index
 
         // Conjugate gradient
-        Double ftol; // Tolerance of energy convergence
+        Double ftol = 1.0e-6; // Tolerance of energy convergence
+        // ! from rxmd.in
 
         // Cutoff range calculation
         Containers::Array<Int> natoms_per_type;
@@ -314,8 +317,8 @@ namespace Magnum
         Containers::String FFPath = "ffield", DataDir = "DAT", ParmPath = "rxmd.in", RunFromXYZPath = "";
 
         bool saveRunProfile = false;
-        std::string RunProfilePath = "profile.dat";
-        const int RunProfileFD = 30; // File descriptor for summary file
+        Containers::String RunProfilePath = "profile.dat";
+        const Int RunProfileFD = 30; // File descriptor for summary file
 
         bool isLG = false;
 

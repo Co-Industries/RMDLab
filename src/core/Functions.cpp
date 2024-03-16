@@ -6,5 +6,8 @@ namespace Magnum
 {
     Functions::Functions(Containers::Array<UnsignedInt> &atype,
                          Containers::Array<Vector3i> &pos) : _atype(atype),
-                                                             _pos(pos) {}
+                                                             _pos(pos)
+    {
+        Debug{} << "HI!";
+    }
 }

@@ -10,6 +10,9 @@ add_custom_target(version
 )    
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/" ${CMAKE_MODULE_PATH})
 
+# Add MagnumIntegration as a subproject
+add_subdirectory(magnum-integration EXCLUDE_FROM_ALL)
+
 # Add Corrade as a subproject
 add_subdirectory(corrade EXCLUDE_FROM_ALL)
 
