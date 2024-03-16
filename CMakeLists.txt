@@ -10,11 +10,6 @@ add_custom_target(version
 )    
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/" ${CMAKE_MODULE_PATH})
 
-# Add ImGui as a subproject
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
-set(MAGNUM_WITH_IMGUI ON CACHE BOOL "" FORCE)
-add_subdirectory(magnum-integration EXCLUDE_FROM_ALL)
-
 # Add Corrade as a subproject
 add_subdirectory(corrade EXCLUDE_FROM_ALL)
 
@@ -22,5 +17,10 @@ add_subdirectory(corrade EXCLUDE_FROM_ALL)
 set(CMAKE_PREFIX_PATH ${PROJECT_SOURCE_DIR}/SDL2-2.0.10 ${CMAKE_PREFIX_PATH})
 set(MAGNUM_WITH_SDL2APPLICATION ON CACHE BOOL "" FORCE)
 add_subdirectory(magnum EXCLUDE_FROM_ALL)
+
+# Add ImGui as a subproject
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+set(MAGNUM_WITH_IMGUI ON CACHE BOOL "" FORCE)
+add_subdirectory(magnum-integration EXCLUDE_FROM_ALL)
 
 add_subdirectory(src)
