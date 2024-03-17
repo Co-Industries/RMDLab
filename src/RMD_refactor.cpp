@@ -47,8 +47,8 @@ namespace Magnum
         void mouseMoveEvent(MouseMoveEvent &event) override;
         void mouseScrollEvent(MouseScrollEvent &event) override;
 
-        bool _showDemoWindow = true;
-        bool _showAnotherWindow = false;
+        ImGuiIntegration::Context _imgui{NoCreate};
+        bool _showDemoWindow = false;
         Color4 _clearColor = 0x72909aff_rgbaf;
         Float _floatValue = 0.0f;
 
@@ -81,25 +81,30 @@ namespace Magnum
                 create(conf, glConf.setSampleCount(0));
             }
         }
+        _imgui = ImGuiIntegration::Context(Vector2{windowSize()} / dpiScaling(),
+                                           windowSize(), framebufferSize());
+
         GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add, GL::Renderer::BlendEquation::Add);
         GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha, GL::Renderer::BlendFunction::OneMinusSourceAlpha);
         GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
         GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
         /* INFO Initialize scene objects */
+        {
+            new Skybox(_scene, _drawables, 30.0f);
+            new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
+            _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
+        }
 
-        new Skybox(_scene, _drawables, 30.0f);
-        new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
-        _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
         /* INFO Camera */
-
-        const Vector3 eye = Vector3::zAxis(5.0f);
-        const Vector3 center{};
-        const Vector3 up = Vector3::yAxis();
-        const Deg fov = 45.0_degf;
-        _arcballCamera.emplace(_scene, eye, center, up, fov, windowSize(), framebufferSize());
-        _arcballCamera->setLagging(0.85f);
-
+        {
+            const Vector3 eye = Vector3::zAxis(5.0f);
+            const Vector3 center{};
+            const Vector3 up = Vector3::yAxis();
+            const Deg fov = 45.0_degf;
+            _arcballCamera.emplace(_scene, eye, center, up, fov, windowSize(), framebufferSize());
+            _arcballCamera->setLagging(0.85f);
+        }
         /* Loop at 60 Hz max (16)*/
         setSwapInterval(1);
         setMinimalLoopPeriod(16);
@@ -118,20 +123,71 @@ namespace Magnum
         }
         /* Update camera */
 
-        bool camChanged = _arcballCamera->update();
+        // ! unused variable [bool camChanged = _arcballCamera->update();]
+        _arcballCamera->update();
         _arcballCamera->draw(_drawables);
+
+        _imgui.newFrame();
+        /* Enable text input, if needed */
+        if (ImGui::GetIO().WantTextInput && !isTextInputActive())
+            startTextInput();
+        else if (!ImGui::GetIO().WantTextInput && isTextInputActive())
+            stopTextInput();
+
+        /* 1. Show a simple window. Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appear in
+        a window called "Debug" automatically */
+        {
+            ImGui::Text("Jo aukstāks laiks, jo aukstāks mans IQ");
+            ImGui::SliderFloat("Float", &_floatValue, 0.0f, 1.0f);
+            if (ImGui::ColorEdit3("Clear Color", _clearColor.data()))
+                GL::Renderer::setClearColor(_clearColor);
+            if (ImGui::Button("Demo Window"))
+                _showDemoWindow ^= true;
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                        1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
+        }
+
+        /* 3. Show the ImGui demo window. Most of the sample code is in ImGui::ShowDemoWindow() */
+        if (_showDemoWindow)
+        {
+            ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
+            ImGui::ShowDemoWindow();
+        }
+
+        /* Update application cursor */
+        _imgui.updateApplicationCursor(*this);
+
+        /* Set appropriate states. If you only draw ImGui, it is sufficient to
+           just enable blending and scissor test in the constructor. */
+        GL::Renderer::enable(GL::Renderer::Feature::Blending);
+        GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+
+        _imgui.drawFrame();
+
+        GL::Renderer::disable(GL::Renderer::Feature::Blending);
+        GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+
         swapBuffers();
 
-        /* If the camera is moving or the animation is running, redraw immediately */
-        if (camChanged || !_paused || _skipFrame)
+        redraw();
+        // ! Doesn't work with ImGui {instead redraw()}
+        // If the camera is moving or the animation is running, redraw immediately
+        /* if (camChanged || !_paused || _skipFrame)
         {
             redraw();
         };
+        */
     }
 
     void RMD::viewportEvent(ViewportEvent &event)
     {
         GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
+        _imgui.relayout(Vector2{event.windowSize()} / event.dpiScaling(),
+                        event.windowSize(), event.framebufferSize());
         _arcballCamera->reshape(event.windowSize(), event.framebufferSize());
     }
 
@@ -141,26 +197,35 @@ namespace Magnum
         {
         case KeyEvent::Key::B:
             _drawOctreeBounds ^= true;
+            event.setAccepted(true);
             break;
         case KeyEvent::Key::R:
             _arcballCamera->reset();
+            event.setAccepted(true);
             break;
         case KeyEvent::Key::Space:
             _paused ^= true;
+            event.setAccepted(true);
             break;
         case KeyEvent::Key::Right:
             _skipFrame = true;
+            event.setAccepted(true);
             break;
         default:
-            return;
+            if (_imgui.handleKeyPressEvent(event))
+            {
+                event.setAccepted(true);
+            }
         }
-
-        event.setAccepted();
-        redraw();
     }
 
     void RMD::mousePressEvent(MouseEvent &event)
     {
+        if (_imgui.handleMousePressEvent(event))
+        {
+            event.setAccepted(true);
+            return;
+        }
         /* Enable mouse capture so the mouse can drag outside of the window */
         /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
         SDL_CaptureMouse(SDL_TRUE);
@@ -172,18 +237,29 @@ namespace Magnum
         else
             _arcballCamera->initTransformation(event.position(), 0);
         event.setAccepted();
-        redraw(); /* camera has changed, redraw! */
+        /* camera has changed, redraw! */
     }
 
-    void RMD::mouseReleaseEvent(MouseEvent &)
+    void RMD::mouseReleaseEvent(MouseEvent &event)
     {
+
         /* Disable mouse capture again */
         /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
         SDL_CaptureMouse(SDL_FALSE);
+
+        if (_imgui.handleMouseReleaseEvent(event))
+        {
+            event.setAccepted(true);
+        }
     }
 
     void RMD::mouseMoveEvent(MouseMoveEvent &event)
     {
+        if (_imgui.handleMouseMoveEvent(event))
+        {
+            event.setAccepted(true);
+            return;
+        }
         if (!event.buttons())
             return;
 
@@ -195,13 +271,18 @@ namespace Magnum
             _arcballCamera->rotate(event.position(), 2);
         else
             _arcballCamera->rotate(event.position(), 0);
-
         event.setAccepted();
-        redraw(); /* camera has changed, redraw! */
+        /* camera has changed, redraw! */
     }
 
     void RMD::mouseScrollEvent(MouseScrollEvent &event)
     {
+        if (_imgui.handleMouseScrollEvent(event))
+        {
+            /* Prevent scrolling the page */
+            event.setAccepted();
+            return;
+        }
         const Float delta = event.offset().y();
         if (Math::abs(delta) < 1.0e-2f)
             return;
@@ -209,7 +290,7 @@ namespace Magnum
         _arcballCamera->zoom(delta);
 
         event.setAccepted();
-        redraw(); /* camera has changed, redraw! */
+        /* camera has changed, redraw! */
     }
 }
 
