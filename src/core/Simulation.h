@@ -21,13 +21,23 @@ namespace Magnum
     class Simulation
     {
     public:
-        explicit Simulation(Int &test);
-        void ImGuiTest();
+        explicit Simulation(
+            Double &_pvdW1,
+            Double &_cutoff_vpar30,
+            UnsignedInt &_nso,
+            Double &_plp1param,
+            Double &_povun3param,
+            Double &_povun4param,
+            Double &_povun6param,
+            Double &_povun7param,
+            Double &_povun8param);
+        void run();
+
+    private:
+        void GETPARAMS();
         void INITSYSTEM();
 
     protected:
-        Int &_test;
-
         Containers::Array<Double> atype; /* Atom type [H, He, Na, C, O, ...] */
         Containers::Array<Double> q;     /* Atom charge */
         Containers::Array<Vector3d> pos; /* Atom position [x, y, z] {int} */
@@ -35,7 +45,9 @@ namespace Magnum
         Containers::Array<Vector3d> f;   /* Atom force */
 
         // Parameters
-        UnsignedInt nso;   // Number of different types of atoms
+        UnsignedInt &nso; // Number of different types of atoms
+        Double &plp1param;
+        Double &povun3param, &povun4param, &povun6param, &povun7param, &povun8param;
         UnsignedInt nboty; // Number of different bonds given
 
         // Atom Dependant
@@ -62,7 +74,7 @@ namespace Magnum
         Containers::Array<Double> phb1, phb2, phb3, r0hb;                                                /* Hydrogren Bond Energy (eq. 18) */
         Containers::Array<Containers::Array<Double>> Dij, alpij, rvdW, gamW;                             /* Van der Waals Energy (eq. 21ab) */
 
-        Double pvdW1, pvdW1h, pvdW1inv; //
+        Double &pvdW1, pvdW1h, pvdW1inv; //
         Double rchb = 10.0;             /* hydrogen bonding interaction cutoff [A] */
         Double rchb2 = rchb * rchb;     //
         Double Cclmb0 = 332.0638;       /* Coulomb Energy (eq. 22) */
@@ -132,7 +144,7 @@ namespace Magnum
         const Double MINBO0 = 1e-4;                  /* cutoff bond order */
         const Double cutof2_esub = 1e-4, cutof2_bo = 1e-3;
         const Int is_idEh = 1;
-        Double cutoff_vpar30;                        /* cutoff_vpar30 = cutof2_bo*vpar30, used in BOPRIM() */
+        Double &cutoff_vpar30; /* cutoff_vpar30 = cutof2_bo*vpar30, used in BOPRIM() */
 
         Int NBUFFER = 30000;               /* Atom buffer / count */
         const Int MAXNEIGHBS = 30;         /* Max # of Ngbs one atom may have */
@@ -146,7 +158,7 @@ namespace Magnum
         const Double sqrtpi_inv = 1.0 / sqrt(pi);
 
         /* stress tensor */
-        Containers::StaticArray<6, Double> astr;
+        Containers::StaticArray<6, Double> astr{0.0};
 
         /* coefficient of bonding energy derivative */
         Containers::Array<Double> ccbnd, cdbnd;

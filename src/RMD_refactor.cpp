@@ -42,15 +42,26 @@ namespace Magnum
         void drawEvent() override;
         void viewportEvent(ViewportEvent &event) override;
         void keyPressEvent(KeyEvent &event) override;
+        void keyReleaseEvent(KeyEvent &event) override;
         void mousePressEvent(MouseEvent &event) override;
         void mouseReleaseEvent(MouseEvent &event) override;
         void mouseMoveEvent(MouseMoveEvent &event) override;
         void mouseScrollEvent(MouseScrollEvent &event) override;
+        void textInputEvent(TextInputEvent &event) override;
 
         ImGuiIntegration::Context _imgui{NoCreate};
         bool _showDemoWindow = false;
         Color3 _clearColor = Color3(1.0f, 0.0f, 0.0f);
-        Int _testValue = 69;
+        // Simulation
+        Double _pvdW1 = 1.5591; // Double _pvdW1min = -5.0; Double _pvdW1max = 5.0;
+        Double _cutoff_vpar30 = 0.0100;
+        UnsignedInt _nso = 7;
+        Double _plp1param = 3.5895;
+        Double _povun3param = 38.5241,
+               _povun4param = 3.4021,
+               _povun6param = 1.0701,
+               _povun7param = 11.9083,
+               _povun8param = 13.3822;
 
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _drawables;
@@ -95,7 +106,16 @@ namespace Magnum
             new Skybox(_scene, _drawables, 30.0f);
             new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
             _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
-            _newSimulation.emplace(_testValue);
+            _newSimulation.emplace(
+                _pvdW1,
+                _cutoff_vpar30,
+                _nso,
+                _plp1param,
+                _povun3param,
+                _povun4param,
+                _povun6param,
+                _povun7param,
+                _povun8param);
         }
 
         /* INFO Camera */
@@ -132,21 +152,34 @@ namespace Magnum
         _imgui.newFrame();
         /* Enable text input, if needed */
         if (ImGui::GetIO().WantTextInput && !isTextInputActive())
+        {
             startTextInput();
+        }
         else if (!ImGui::GetIO().WantTextInput && isTextInputActive())
+        {
             stopTextInput();
-
+        }
         /* 1. Show a simple window. Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appear in
         a window called "Debug" automatically */
         {
-            ImGui::Text("Jo aukstāks laiks, jo aukstāks mans IQ");
-            ImGui::SliderInt("test", &_testValue, 0, 6969);
-            if (ImGui::ColorEdit3("Clear Color", _clearColor.data()))
-                _simulation->updateColor(_clearColor);
-            if (ImGui::Button("Demo Window"))
+            ImGui::Text("Auksts laiks, bet silta mana sirds.");
+            if (ImGui::Button("Demo window"))
                 _showDemoWindow ^= true;
-            if (ImGui::Button("Debug Value"))
-                _newSimulation->ImGuiTest();
+            ImGui::Text("|| SIMULATION ||");
+            // ImGui::SliderScalar("vdWaals shielding", ImGuiDataType_Double, &_pvdW1, &_pvdW1min, &_pvdW1max);
+            ImGui::InputScalar("Atoms", ImGuiDataType_U32, &_nso);
+            ImGui::InputDouble("vdWaals shielding", &_pvdW1);
+            ImGui::InputDouble("Cutoff for bond order (*100)", &_cutoff_vpar30);
+            ImGui::InputDouble("Valency angle/lone pair parameter", &_plp1param);
+            ImGui::InputDouble("Overcoordination <povun3>", &_povun3param);
+            ImGui::InputDouble("Overcoordination <povun4>", &_povun4param);
+            ImGui::InputDouble("Undercoordination <povun6>", &_povun6param);
+            ImGui::InputDouble("Undercoordination <povun7>", &_povun7param);
+            ImGui::InputDouble("Undercoordination <povun8>", &_povun8param);
+            if (ImGui::ColorEdit3("Atom color", _clearColor.data()))
+                _simulation->updateColor(_clearColor);
+            if (ImGui::Button("Run Simulation"))
+                _newSimulation->run();
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                         1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }
@@ -193,35 +226,35 @@ namespace Magnum
         {
         case KeyEvent::Key::B:
             _drawOctreeBounds ^= true;
-            event.setAccepted(true);
             break;
         case KeyEvent::Key::R:
             _arcballCamera->reset();
-            event.setAccepted(true);
             break;
         case KeyEvent::Key::Space:
             _paused ^= true;
-            event.setAccepted(true);
             break;
         case KeyEvent::Key::Right:
             _skipFrame = true;
-            event.setAccepted(true);
             break;
         default:
             if (_imgui.handleKeyPressEvent(event))
             {
-                event.setAccepted(true);
+                event.setAccepted();
             }
         }
+    }
+
+    void RMD::keyReleaseEvent(KeyEvent &event)
+    {
+        if (_imgui.handleKeyReleaseEvent(event))
+            return;
     }
 
     void RMD::mousePressEvent(MouseEvent &event)
     {
         if (_imgui.handleMousePressEvent(event))
-        {
-            event.setAccepted(true);
             return;
-        }
+
         /* Enable mouse capture so the mouse can drag outside of the window */
         /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
         SDL_CaptureMouse(SDL_TRUE);
@@ -237,24 +270,18 @@ namespace Magnum
 
     void RMD::mouseReleaseEvent(MouseEvent &event)
     {
-
+        if (_imgui.handleMouseReleaseEvent(event))
+            return;
         /* Disable mouse capture again */
         /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
         SDL_CaptureMouse(SDL_FALSE);
-
-        if (_imgui.handleMouseReleaseEvent(event))
-        {
-            event.setAccepted(true);
-        }
     }
 
     void RMD::mouseMoveEvent(MouseMoveEvent &event)
     {
         if (_imgui.handleMouseMoveEvent(event))
-        {
-            event.setAccepted(true);
             return;
-        }
+
         if (!event.buttons())
             return;
 
@@ -272,11 +299,8 @@ namespace Magnum
     void RMD::mouseScrollEvent(MouseScrollEvent &event)
     {
         if (_imgui.handleMouseScrollEvent(event))
-        {
-            /* Prevent scrolling the page */
-            event.setAccepted();
             return;
-        }
+
         const Float delta = event.offset().y();
         if (Math::abs(delta) < 1.0e-2f)
             return;
@@ -284,6 +308,13 @@ namespace Magnum
         _arcballCamera->zoom(delta);
 
         event.setAccepted();
+    }
+
+    void RMD::textInputEvent(TextInputEvent &event)
+    {
+        if (_imgui.handleTextInputEvent(event))
+            event.setAccepted();
+        return;
     }
 }
 
