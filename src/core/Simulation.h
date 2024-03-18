@@ -7,11 +7,12 @@
 #include <Corrade/Containers/Array.h>
 #include <Corrade/Containers/String.h>
 
-#include <Magnum/Math/Range.h>
-#include <Magnum/Math/Constants.h>
-#include <Magnum/Math/Vector.h>
-#include <Magnum/Math/Color.h>
 #include <Magnum/Magnum.h>
+#include <Magnum/Math/Color.h>
+#include <Magnum/Math/Constants.h>
+#include <Magnum/Math/Range.h>
+#include <Magnum/Math/Vector.h>
+#include <Magnum/Math/Vector3.h>
 
 namespace Magnum
 {
@@ -20,15 +21,18 @@ namespace Magnum
     class Simulation
     {
     public:
-        explicit Simulation();
-        void GetParams();
+        explicit Simulation(Int &test);
+        void ImGuiTest();
+        void INITSYSTEM();
 
     protected:
-        Containers::Array<UnsignedInt> _atype; /* Atom type [H, He, Na, C, O, ...] */
-        Containers::Array<Int> _q;             /* Atom charge */
-        Containers::Array<Vector3i> _pos;      /* Atom position [x, y, z] {int} */
-        Containers::Array<Vector3i> _v;        /* Atom velocity */
-        Containers::Array<Vector3i> f;         /* Atom force */
+        Int &_test;
+
+        Containers::Array<Double> atype; /* Atom type [H, He, Na, C, O, ...] */
+        Containers::Array<Double> q;     /* Atom charge */
+        Containers::Array<Vector3d> pos; /* Atom position [x, y, z] {int} */
+        Containers::Array<Vector3d> v;   /* Atom velocity */
+        Containers::Array<Vector3d> f;   /* Atom force */
 
         // Parameters
         UnsignedInt nso;   // Number of different types of atoms

@@ -4,20 +4,31 @@
 
 namespace Magnum
 {
-    Simulation::Simulation()
+    Simulation::Simulation(Int &test) : _test(test)
     {
-        // Int i, ity, it1, it2, irt;
-        // Double ctmp;
-        // Containers::StaticArray<3, Double> dr;
+        Int i, ity, it1, it2, irt;
+        Double ctmp;
+        Containers::StaticArray<3, Double> dr;
 
-        Debug{}
-            << "Simulation has started";
+        Debug{} << "Simulation has started";
     }
 
-    void Simulation::GetParams()
+    void Simulation::ImGuiTest()
     {
-        // Int i, j, inxn;
-        // Int i0, i1, i2, i3, i4, ih;
-        // Int nodmty, npar, nvaty, ntoty, nhbty;
+        Debug{} << _test;
+    }
+
+    void Simulation::INITSYSTEM()
+    {
+        Int i, j, k, ity, ist = 0;
+        Containers::StaticArray<3, Int> l;
+        Double mm, gmm, dns;
+        Containers::StaticArray<3, Containers::Array<Double>> mat; // mat(3)
+        Long i8;
+        Double maxrcell;
+        Containers::StaticArray<3, Double> rcsize;
+
+        // for QEq (simulation should be Qeq instead of PQeq)
+        rctap = rctap0;
     }
 }

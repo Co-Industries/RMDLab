@@ -49,12 +49,13 @@ namespace Magnum
 
         ImGuiIntegration::Context _imgui{NoCreate};
         bool _showDemoWindow = false;
-        Color4 _clearColor = 0x72909aff_rgbaf;
-        Float _floatValue = 0.0f;
+        Color3 _clearColor = Color3(1.0f, 0.0f, 0.0f);
+        Int _testValue = 69;
 
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _drawables;
         Containers::Pointer<SimulationOld> _simulation;
+        Containers::Pointer<Simulation> _newSimulation;
         Containers::Optional<ArcBallCamera> _arcballCamera;
 
         bool _drawOctreeBounds = true;
@@ -94,6 +95,7 @@ namespace Magnum
             new Skybox(_scene, _drawables, 30.0f);
             new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
             _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
+            _newSimulation.emplace(_testValue);
         }
 
         /* INFO Camera */
@@ -121,8 +123,8 @@ namespace Magnum
             _simulation->updateOctree();
             _simulation->updateAtoms();
         }
-        /* Update camera */
 
+        /* Update camera */
         // ! unused variable [bool camChanged = _arcballCamera->update();]
         _arcballCamera->update();
         _arcballCamera->draw(_drawables);
@@ -138,16 +140,17 @@ namespace Magnum
         a window called "Debug" automatically */
         {
             ImGui::Text("Jo aukstāks laiks, jo aukstāks mans IQ");
-            ImGui::SliderFloat("Float", &_floatValue, 0.0f, 1.0f);
+            ImGui::SliderInt("test", &_testValue, 0, 6969);
             if (ImGui::ColorEdit3("Clear Color", _clearColor.data()))
-                GL::Renderer::setClearColor(_clearColor);
+                _simulation->updateColor(_clearColor);
             if (ImGui::Button("Demo Window"))
                 _showDemoWindow ^= true;
+            if (ImGui::Button("Debug Value"))
+                _newSimulation->ImGuiTest();
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                         1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }
 
-        /* 3. Show the ImGui demo window. Most of the sample code is in ImGui::ShowDemoWindow() */
         if (_showDemoWindow)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
@@ -174,13 +177,6 @@ namespace Magnum
         swapBuffers();
 
         redraw();
-        // ! Doesn't work with ImGui {instead redraw()}
-        // If the camera is moving or the animation is running, redraw immediately
-        /* if (camChanged || !_paused || _skipFrame)
-        {
-            redraw();
-        };
-        */
     }
 
     void RMD::viewportEvent(ViewportEvent &event)
@@ -237,7 +233,6 @@ namespace Magnum
         else
             _arcballCamera->initTransformation(event.position(), 0);
         event.setAccepted();
-        /* camera has changed, redraw! */
     }
 
     void RMD::mouseReleaseEvent(MouseEvent &event)
@@ -272,7 +267,6 @@ namespace Magnum
         else
             _arcballCamera->rotate(event.position(), 0);
         event.setAccepted();
-        /* camera has changed, redraw! */
     }
 
     void RMD::mouseScrollEvent(MouseScrollEvent &event)
@@ -290,7 +284,6 @@ namespace Magnum
         _arcballCamera->zoom(delta);
 
         event.setAccepted();
-        /* camera has changed, redraw! */
     }
 }
 

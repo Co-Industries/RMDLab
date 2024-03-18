@@ -45,6 +45,7 @@ namespace Magnum
         explicit SimulationOld(Scene3D &scene, SceneGraph::DrawableGroup3D &drawables, UnsignedInt atomCount, bool &drawOctreeBounds);
         void updateAtoms();
         void updateOctree();
+        void updateColor(Color3 color);
 
     private:
         void octreeCollisionDetection();

@@ -83,6 +83,14 @@ namespace Magnum
         new FlatGLDrawable{*octreeObject, _octreeShader, _octreeMesh, _drawables};
     }
 
+    void SimulationOld::updateColor(Color3 color)
+    {
+        for (std::size_t i = 0; i < _atomCount; ++i)
+        {
+            _atomInstanceData[i].color = color;
+        }
+    }
+
     void SimulationOld::octreeCollisionDetection()
     {
         const OctreeNode &rootNode = _octree->rootNode();
