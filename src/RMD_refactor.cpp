@@ -55,7 +55,7 @@ namespace Magnum
         // Simulation
         Double _pvdW1 = 1.5591; // Double _pvdW1min = -5.0; Double _pvdW1max = 5.0;
         Double _cutoff_vpar30 = 0.0100;
-        UnsignedInt _nso = 7;
+        UnsignedInt _nso = 7, _nboty = 18;
         Double _plp1param = 3.5895;
         Double _povun3param = 38.5241,
                _povun4param = 3.4021,
@@ -107,15 +107,16 @@ namespace Magnum
             new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
             _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
             _newSimulation.emplace(
-                _pvdW1,
-                _cutoff_vpar30,
                 _nso,
+                _nboty,
                 _plp1param,
                 _povun3param,
                 _povun4param,
                 _povun6param,
                 _povun7param,
-                _povun8param);
+                _povun8param,
+                _pvdW1,
+                _cutoff_vpar30);
         }
 
         /* INFO Camera */
@@ -167,7 +168,8 @@ namespace Magnum
                 _showDemoWindow ^= true;
             ImGui::Text("|| SIMULATION ||");
             // ImGui::SliderScalar("vdWaals shielding", ImGuiDataType_Double, &_pvdW1, &_pvdW1min, &_pvdW1max);
-            ImGui::InputScalar("Atoms", ImGuiDataType_U32, &_nso);
+            // ImGui::InputScalar("Atoms", ImGuiDataType_U32, &_nso);
+            // ImGui::InputScalar("Bonds", ImGuiDataType_U32, &_nboty);
             ImGui::InputDouble("vdWaals shielding", &_pvdW1);
             ImGui::InputDouble("Cutoff for bond order (*100)", &_cutoff_vpar30);
             ImGui::InputDouble("Valency angle/lone pair parameter", &_plp1param);

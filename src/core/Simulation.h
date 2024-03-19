@@ -22,15 +22,16 @@ namespace Magnum
     {
     public:
         explicit Simulation(
-            Double &_pvdW1,
-            Double &_cutoff_vpar30,
             UnsignedInt &_nso,
+            UnsignedInt &_nboty,
             Double &_plp1param,
             Double &_povun3param,
             Double &_povun4param,
             Double &_povun6param,
             Double &_povun7param,
-            Double &_povun8param);
+            Double &_povun8param,
+            Double &_pvdW1,
+            Double &_cutoff_vpar30);
         void run();
 
     private:
@@ -46,9 +47,9 @@ namespace Magnum
 
         // Parameters
         UnsignedInt &nso; // Number of different types of atoms
+        UnsignedInt &nboty; // Number of different bonds given
         Double &plp1param;
         Double &povun3param, &povun4param, &povun6param, &povun7param, &povun8param;
-        UnsignedInt nboty; // Number of different bonds given
 
         // Atom Dependant
         Containers::Array<Containers::String> atmname;                                                   /* Chemical Abbrev for each atomtype */
