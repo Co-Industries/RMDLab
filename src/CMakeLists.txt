@@ -59,7 +59,8 @@ add_executable(RMD
     ./components/scene/Scene.cpp
     ./core/Simulation.cpp
     ./core/Simulation_old.cpp
-    ./core/Functions.cpp)
+    ./core/Functions.cpp
+    ./core/Data.cpp)
 
 add_dependencies(RMD version)
 

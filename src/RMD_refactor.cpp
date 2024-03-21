@@ -62,6 +62,7 @@ namespace Magnum
                _povun6param = 1.0701,
                _povun7param = 11.9083,
                _povun8param = 13.3822;
+        UnsignedLong _NATOMS = 100;
 
         Scene3D _scene;
         SceneGraph::DrawableGroup3D _drawables;
@@ -116,7 +117,8 @@ namespace Magnum
                 _povun7param,
                 _povun8param,
                 _pvdW1,
-                _cutoff_vpar30);
+                _cutoff_vpar30,
+                _NATOMS);
         }
 
         /* INFO Camera */
@@ -168,20 +170,20 @@ namespace Magnum
                 _showDemoWindow ^= true;
             ImGui::Text("|| SIMULATION ||");
             // ImGui::SliderScalar("vdWaals shielding", ImGuiDataType_Double, &_pvdW1, &_pvdW1min, &_pvdW1max);
-            // ImGui::InputScalar("Atoms", ImGuiDataType_U32, &_nso);
+            // ImGui::InputScalar("Atom types", ImGuiDataType_U32, &_nso);
             // ImGui::InputScalar("Bonds", ImGuiDataType_U32, &_nboty);
-            ImGui::InputDouble("vdWaals shielding", &_pvdW1);
-            ImGui::InputDouble("Cutoff for bond order (*100)", &_cutoff_vpar30);
-            ImGui::InputDouble("Valency angle/lone pair parameter", &_plp1param);
-            ImGui::InputDouble("Overcoordination <povun3>", &_povun3param);
-            ImGui::InputDouble("Overcoordination <povun4>", &_povun4param);
-            ImGui::InputDouble("Undercoordination <povun6>", &_povun6param);
-            ImGui::InputDouble("Undercoordination <povun7>", &_povun7param);
-            ImGui::InputDouble("Undercoordination <povun8>", &_povun8param);
+            // ImGui::InputDouble("vdWaals shielding", &_pvdW1);
+            // ImGui::InputDouble("Cutoff for bond order (*100)", &_cutoff_vpar30);
+            // ImGui::InputDouble("Valency angle/lone pair parameter", &_plp1param);
+            // ImGui::InputDouble("Overcoordination <povun3>", &_povun3param);
+            // ImGui::InputDouble("Overcoordination <povun4>", &_povun4param);
+            // ImGui::InputDouble("Undercoordination <povun6>", &_povun6param);
+            // ImGui::InputDouble("Undercoordination <povun7>", &_povun7param);
+            // ImGui::InputDouble("Undercoordination <povun8>", &_povun8param);
             if (ImGui::ColorEdit3("Atom color", _clearColor.data()))
                 _simulation->updateColor(_clearColor);
             if (ImGui::Button("Run Simulation"))
-                _newSimulation->run();
+                _newSimulation->RUN();
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                         1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }

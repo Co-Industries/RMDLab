@@ -1,10 +1,14 @@
 /* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 
-#include "Simulation.h"
 #include <Magnum/Math/Functions.h>
+
+#include "Data.h"
+#include "Functions.h"
+#include "Simulation.h"
 
 namespace Magnum
 {
+    // TODO CODE CLEANUP (struct)
     Simulation::Simulation(
         UnsignedInt &_nso,
         UnsignedInt &_nboty,
@@ -15,41 +19,44 @@ namespace Magnum
         Double &_povun7param,
         Double &_povun8param,
         Double &_pvdW1,
-        Double &_cutoff_vpar30) : nso(_nso),
-                                  nboty(_nboty),
-                                  plp1param(_plp1param),
-                                  povun3param(_povun3param),
-                                  povun4param(_povun4param),
-                                  povun6param(_povun6param),
-                                  povun7param(_povun7param),
-                                  povun8param(_povun8param),
-                                  pvdW1(_pvdW1),
-                                  cutoff_vpar30(_cutoff_vpar30)
+        Double &_cutoff_vpar30,
+        UnsignedLong &_NATOMS) : nso(_nso),
+                                 nboty(_nboty),
+                                 plp1param(_plp1param),
+                                 povun3param(_povun3param),
+                                 povun4param(_povun4param),
+                                 povun6param(_povun6param),
+                                 povun7param(_povun7param),
+                                 povun8param(_povun8param),
+                                 pvdW1(_pvdW1),
+                                 cutoff_vpar30(_cutoff_vpar30)
     {
+        NATOMS = _NATOMS;
         Debug{} << "Simulation has loaded";
     }
 
-    void Simulation::run()
+    void Simulation::RUN()
     {
-        Debug{} << "Simulation running";
-        Int i, ity, it1, it2, irt;
-        Double ctmp;
+        // Int i, ity, it1, it2, irt;
+        // Double ctmp;
         Containers::StaticArray<3, Double> dr;
 
         GETPARAMS();
         INITSYSTEM();
 
-        Debug{} << "Parameters -------";
-        Debug{} << "<pvdW1>:" << pvdW1;
-        Debug{} << "<cutoff_vpar30>:" << cutoff_vpar30;
-        Debug{} << "<nso>:" << nso;
-        Debug{} << "<nboty>:" << nboty;
-        Debug{} << "<plp1>:" << plp1;
-        Debug{} << "<povun3>:" << povun3;
-        Debug{} << "<povun4>:" << povun4;
-        Debug{} << "<povun6>:" << povun6;
-        Debug{} << "<povun7>:" << povun7;
-        Debug{} << "<povun8>:" << povun8;
+        // Debug{} << "Parameters -------";
+        // Debug{} << "<pvdW1>:" << pvdW1;
+        // Debug{} << "<cutoff_vpar30>:" << cutoff_vpar30;
+        // Debug{} << "<nso>:" << nso;
+        // Debug{} << "<nboty>:" << nboty;
+        // Debug{} << "<plp1>:" << plp1;
+        // Debug{} << "<povun3>:" << povun3;
+        // Debug{} << "<povun4>:" << povun4;
+        // Debug{} << "<povun6>:" << povun6;
+        // Debug{} << "<povun7>:" << povun7;
+        // Debug{} << "<povun8>:" << povun8;
+        Debug{} << "Simulation running";
+        QEq();
     }
 
     void Simulation::GETPARAMS()
@@ -217,7 +224,7 @@ namespace Magnum
 
         // Bonds
         Containers::Array<Containers::Array<Int>> inxn2{nso};
-        for (int i = 0; i < nso; ++i)
+        for (UnsignedInt i = 0; i < nso; ++i)
         {
             arrayResize(inxn2[i], nso);
         }
@@ -244,13 +251,14 @@ namespace Magnum
         arrayAppend(povun1, _povun1);
 
         Int ih = 0;
-        for (int i = 0; i < nboty; ++i)
+        for (UnsignedInt i = 0; i < nboty; ++i)
         {
             ++ih;
 
             inxn2[typea[i]][typeb[i]] = ih;
             inxn2[typeb[i]][typea[i]] = ih;
         }
+        Debug{} << "<inxn2>:" << inxn2;
     }
 
     void Simulation::INITSYSTEM()
@@ -276,5 +284,38 @@ namespace Magnum
         CTap[5] = 84.0 / pow(rctap, 5);
         CTap[6] = -70.0 / pow(rctap, 6);
         CTap[7] = 20.0 / pow(rctap, 7);
+
+        // time unit conversion from [fs] -> time unit
+        dt = dt / UTIME;
+        // square the spring const in the extended Lagrangian method
+        Lex_w2 = 2.0 * Lex_k / dt / dt;
+        // get reduced temperature from [K]
+        treq = treq / UTEMP0;
+        // setup the vector ID and parity for processes, in x, y and z order
+        // vID[0] = ;
+
+        arrayResize(dthm, nso);
+        arrayResize(hmas, nso);
+
+        for (UnsignedInt i = 0; i < nso; ++i)
+        {
+            dthm[i] = dt * 0.5 / mass[i];
+            hmas[i] = 0.5 * mass[i];
+        }
+    }
+
+    //! MAIN LOOP
+    void Simulation::UPDATE()
+    {
+        // output
+        // if (nstep % pstep == 0)
+        //     PRINTE(...);
+        // if(nstep % fstep == 0)
+        //     OUTPUT(...);
+
+        // if (nstep % sstep == 0)
+        //{
+        //     for (int i = 0)
+        // }
     }
 }

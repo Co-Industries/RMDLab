@@ -1,7 +1,6 @@
 #ifndef RMD_Simulation_h
 #define RMD_Simulation_h
 
-/* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/StaticArray.h>
 #include <Corrade/Containers/Array.h>
@@ -17,10 +16,20 @@
 namespace Magnum
 {
     using namespace Math::Literals;
+    // class Atom
+    //{
+    // protected:
+    //     Containers::String name;
+    //     Double mass;
+    //     Double q;
+    //     Color3 color;
+    // };
 
+    // TODO CODE CLEANUP
     class Simulation
     {
     public:
+        // TODO Make these parameters into a struct
         explicit Simulation(
             UnsignedInt &_nso,
             UnsignedInt &_nboty,
@@ -31,14 +40,21 @@ namespace Magnum
             Double &_povun7param,
             Double &_povun8param,
             Double &_pvdW1,
-            Double &_cutoff_vpar30);
-        void run();
+            Double &_cutoff_vpar30,
+            UnsignedLong &_NATOMS);
+        void UPDATE();
+        void RUN();
 
     private:
         void GETPARAMS();
         void INITSYSTEM();
 
     protected:
+        // Atoms
+        // Atom H = new Atom("Hydrogen", 1.0, 1.0, Color3::fromSrgbInt(0xffffff));
+        // Atom D = new Atom("Deuterium", 2.0, 1.0, Color3::fromSrgbInt(0xffffc0));
+        // Atom T = new Atom("Tritium", 3.0, 1.0, Color3::fromSrgbInt(0xffffa0));
+
         Containers::Array<Double> atype; /* Atom type [H, He, Na, C, O, ...] */
         Containers::Array<Double> q;     /* Atom charge */
         Containers::Array<Vector3d> pos; /* Atom position [x, y, z] {int} */
@@ -133,6 +149,7 @@ namespace Magnum
             MODE_QCOPY1,
             MODE_QCOPY2
         };
+
         const Int NE_CPBK = 4;
         const Int MAXLAYERS = 5; /* MAXimum # of linkedlist cell LAYERS. */
         const Int MAXLAYERS_NB = 10;
@@ -171,7 +188,6 @@ namespace Magnum
         Double MDBOX;                            /* MD box */
         Containers::StaticArray<4, Double> LBOX; /* local MD box */
         Containers::StaticArray<3, Double> OBOX; /* origin of box */
-        Int NATOMS;                              /* local # of atoms */
         Long GNATOMS;                            /* global # of atoms */
         Int ALLATOMS;
         /* <llist> Linked List */
