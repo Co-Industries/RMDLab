@@ -21,21 +21,22 @@ namespace Magnum
                                                                                   _drawOctreeBounds(drawOctreeBounds)
     {
         Debug{} << "HI!";
-        _atomRadius = 0.02f;
-        _atomVelocity = 0.5f;
+        _atomRadius = 1.0;
+        _atomRange = 10.0; // [A] (100 pm)
+        _atomVelocity = 0.2;
 
         _atomPositions = Containers::Array<Vector3>{NoInit, _atomCount};
         _atomVelocities = Containers::Array<Vector3>{NoInit, _atomCount};
         _atomInstanceData = Containers::Array<AtomInstanceDataOld>{NoInit, _atomCount};
-
+        //_atomData = Containers::Array<AtomData>{NoInit, _atomCount};
         for (std::size_t i = 0; i < _atomCount; ++i)
         {
             const Vector3 tmpPos = Vector3(std::rand(), std::rand(), std::rand()) / Float(RAND_MAX);
             const Vector3 tmpVel = Vector3(std::rand(), std::rand(), std::rand()) / Float(RAND_MAX);
 
-            _atomPositions[i] = tmpPos * 2.0f - Vector3{1.0f};
+            _atomPositions[i] = tmpPos * 200.0 - Vector3{100.0};
             _atomPositions[i].y() *= 0.5f;
-            _atomVelocities[i] = (tmpVel * 2.0f - Vector3{1.0f}).resized(_atomVelocity);
+            _atomVelocities[i] = (tmpVel * 200.0 - Vector3{100.0}).resized(_atomVelocity);
 
             _atomInstanceData[i].transformationMatrix =
                 Matrix4::translation(_atomPositions[i]) *
@@ -48,8 +49,8 @@ namespace Magnum
         _atomShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
                                            .setFlags(Shaders::PhongGL::Flag::VertexColor |
                                                      Shaders::PhongGL::Flag::InstancedTransformation)};
-        _atomShader.setShininess(10.0f);
-        _atomShader.setSpecularColor(Color3({0.3}));
+        _atomShader.setShininess(5.0f);
+        _atomShader.setSpecularColor(Color3({0.1}));
         _atomInstanceBuffer = GL::Buffer{};
         _atomMesh = MeshTools::compile(Primitives::icosphereSolid(2));
         _atomMesh.addVertexBufferInstanced(_atomInstanceBuffer, 1, 0,
@@ -61,7 +62,7 @@ namespace Magnum
         auto atomObject = new Object3D{&_scene};
         new AtomDrawable{*atomObject, _atomShader, _atomMesh, _drawables};
         /*Setup octree*/
-        _octree.emplace(Vector3{0}, 1.0f, Math::max(_atomRadius, 0.1f));
+        _octree.emplace(Vector3{0}, 100.0, _atomRange);
 
         _octree->setPoints(_atomPositions);
         _octree->build();
@@ -94,11 +95,11 @@ namespace Magnum
     void SimulationOld::octreeCollisionDetection()
     {
         const OctreeNode &rootNode = _octree->rootNode();
-        for (std::size_t i = 0; i < _atomPositions.size(); ++i)
+        for (std::size_t i = 0; i < _atomCount; ++i)
         {
             checkCollisionWithSubTree(rootNode, i,
                                       _atomPositions[i], _atomVelocities[i],
-                                      Range3D::fromCenter(_atomPositions[i], Vector3{_atomRadius}));
+                                      Range3D::fromCenter(_atomPositions[i], Vector3{_atomRange}));
         }
     }
 
@@ -145,42 +146,93 @@ namespace Magnum
         for (const OctreePoint *const point : node.pointList())
         {
             const std::size_t j = point->idx();
+            // if (_atomData[i].collisions.isEmpty())
+            //{
+            //      _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+            // }
+            // else
+            //{
+            //      _atomInstanceData[i].color = Color3(0.0, 2.0, 0.0);
+            //  }
+            // if (_atomData[j].collisions.isEmpty())
+            //{
+            //      _atomInstanceData[j].color = Color3(1.0, 0.0, 0.0);
+            //  }
+            //  else
+            //{
+            //      _atomInstanceData[j].color = Color3(0.0, 2.0, 0.0);
+            //  }
             if (j > i)
             {
+                // if (_atomData[i].colliding)
+                //{
+                //       _atomInstanceData[i].color = Color3(0.0, 1.0, 0.0);
+                // }
+                // else
+                //{
+                //       _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+                // }
+                // if (_atomData[j].colliding)
+                //{
+                //       _atomInstanceData[j].color = Color3(0.0, 1.0, 0.0);
+                // }
+                // else
+                //{
+                //       _atomInstanceData[j].color = Color3(1.0, 0.0, 0.0);
+                // }
+                //_atomData[i].colliding = false;
+                //_atomData[j].colliding = false;
                 const Vector3 qpos = _atomPositions[j];
-                const Vector3 qvel = _atomVelocities[j];
-                const Vector3 velpq = pvel - qvel;
+                // const Vector3 qvel = _atomVelocities[j];
+                // const Vector3 velpq = pvel - qvel;
                 const Vector3 pospq = ppos - qpos;
-                const Float vp = Math::dot(velpq, pospq);
+                // const Float vp = Math::dot(velpq, pospq);
                 /* INFO Velocity vector, to stop attraction*/
-                if (vp < 0.0f)
+                // if (vp < 0.0f)
+                const Float dpq = pospq.length();
+                //_atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+                //_atomInstanceData[j].color = Color3(1.0, 0.0, 0.0);
+                if (dpq < 2.0f * _atomRange)
                 {
-                    const Float dpq = pospq.length();
-                    if (dpq < 2.0f * _atomRadius)
-                    {
-
-                        /* INFO - Collisions*/
-                        const Vector3 vNormal = vp * pospq / (dpq * dpq);
-                        _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
-                        _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
-                    }
+                    _atomInstanceData[i].color = Color3(1.0, 0.5f + _atomInstanceData[i].color.y(), dpq);
+                    _atomInstanceData[j].color = Color3(1.0, 0.5f + _atomInstanceData[j].color.y(), dpq);
+                    // arrayAppend(_atomData[i].collisions, j);
+                    // arrayAppend(_atomData[j].collisions, i);
+                    //_atomData[i].collisions.insert(j);
+                    //_atomData[j].collisions.insert(i);
                 }
+
+                //{
+
+                //_atomData[i].colliding = true;
+                //_atomData[j].colliding = true;
+
+                // const Float dpq = pospq.length();
+                // if (dpq < 2.0f * _atomRadius)
+                //{
+
+                /* INFO - Collisions*/
+                // const Vector3 vNormal = vp * pospq / (dpq * dpq);
+                //_atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
+                //_atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
+                //}
+                //}
             }
         }
     }
 
     void SimulationOld::updateAtoms()
     {
-        constexpr Float dt = 1.0f / 120.0f;
+        constexpr Float dt = 1.0f / 1.2f;
 
         for (std::size_t i = 0; i < _atomPositions.size(); ++i)
         {
             Vector3 pos = _atomPositions[i] + _atomVelocities[i] * dt;
             for (std::size_t j = 0; j < 3; ++j)
             {
-                if (pos[j] < -1.0f || pos[j] > 1.0f)
+                if (pos[j] < -100.0f || pos[j] > 100.0f)
                     _atomVelocities[i][j] = -_atomVelocities[i][j];
-                pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
+                pos[j] = Math::clamp(pos[j], -100.0f, 100.0f);
             }
 
             _atomPositions[i] = pos;
@@ -191,6 +243,12 @@ namespace Magnum
 
     void SimulationOld::updateOctree()
     {
+        //
+        for (std::size_t i = 0; i < _atomCount; i++)
+        {
+            _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+        }
+        //
         octreeCollisionDetection();
         _octree->update();
         arrayResize(_octreeInstanceData, 0);

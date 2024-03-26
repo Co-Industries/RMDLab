@@ -4,6 +4,7 @@
 /* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Pointer.h>
+#include <unordered_set>
 
 #include <Magnum/GL/Mesh.h>
 
@@ -28,6 +29,12 @@ namespace Magnum
         Matrix3x3 normalMatrix;
         Color3 color;
     };
+
+    // struct AtomData
+    //{
+    //     Containers::Array<int> collisions;
+    // };
+
     struct OctreeInstanceDataOld
     {
         Matrix4 transformationMatrix;
@@ -59,10 +66,11 @@ namespace Magnum
         SceneGraph::DrawableGroup3D &_drawables;
 
         Containers::Array<AtomInstanceDataOld> _atomInstanceData;
+        // Containers::Array<AtomData> _atomData;
         Containers::Array<Vector3> _atomPositions;
         Containers::Array<Vector3> _atomVelocities;
         GL::Buffer _atomInstanceBuffer;
-        Float _atomRadius, _atomVelocity;
+        Float _atomRadius, _atomVelocity, _atomRange;
         UnsignedInt _atomCount;
 
         Containers::Pointer<LooseOctree> _octree;

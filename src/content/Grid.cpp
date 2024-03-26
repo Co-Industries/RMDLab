@@ -23,7 +23,7 @@ namespace Magnum
     {
         const Trade::MeshData _meshData = Primitives::grid3DWireframe(subdivisions);
         Trade::MeshData _mutableMeshData = MeshTools::copy(_meshData);
-        MeshTools::transformPointsInPlace(Matrix4::translation(Vector3(0.0f, -1.0f, 0.0f)) *
+        MeshTools::transformPointsInPlace(Matrix4::translation(Vector3(0.0f, -size / 2, 0.0f)) *
                                               Matrix4::scaling(Vector3{size}) *
                                               Matrix4::rotationX(90.0_degf),
                                           _mutableMeshData.mutableAttribute<Vector3>(Trade::MeshAttribute::Position));

@@ -20,13 +20,13 @@
 #include <Magnum/SceneGraph/Object.h>
 #include <Magnum/SceneGraph/Scene.h>
 
-#include "Version.h"
 #include "./components/arcball/ArcBall.h"
 #include "./components/arcball/ArcBallCamera.h"
-#include "./content/Skybox.h"
 #include "./content/Grid.h"
-#include "./core/Simulation_old.h"
+#include "./content/Skybox.h"
 #include "./core/Simulation.h"
+#include "./core/Simulation_old.h"
+#include "Version.h"
 
 namespace Magnum
 
@@ -51,7 +51,7 @@ namespace Magnum
 
         ImGuiIntegration::Context _imgui{NoCreate};
         bool _showDemoWindow = false;
-        Color3 _clearColor = Color3(1.0f, 0.0f, 0.0f);
+        Color3 _clearColor = Color3(1.0f, 1.0f, 0.0f);
         // Simulation
         Double _pvdW1 = 1.5591; // Double _pvdW1min = -5.0; Double _pvdW1max = 5.0;
         Double _cutoff_vpar30 = 0.0100;
@@ -104,26 +104,15 @@ namespace Magnum
 
         /* INFO Initialize scene objects */
         {
-            new Skybox(_scene, _drawables, 30.0f);
-            new Grid(_scene, _drawables, 5.0f, Vector2i{40}, Color3{0.7f});
-            _simulation.emplace(_scene, _drawables, UnsignedInt(500), _drawOctreeBounds);
-            _newSimulation.emplace(
-                _nso,
-                _nboty,
-                _plp1param,
-                _povun3param,
-                _povun4param,
-                _povun6param,
-                _povun7param,
-                _povun8param,
-                _pvdW1,
-                _cutoff_vpar30,
-                _NATOMS);
+            new Skybox(_scene, _drawables, 500.0f);
+            new Grid(_scene, _drawables, 200.0f, Vector2i{40}, Color3{0.7f});
+            _simulation.emplace(_scene, _drawables, UnsignedInt(100), _drawOctreeBounds);
+            _newSimulation.emplace();
         }
 
         /* INFO Camera */
         {
-            const Vector3 eye = Vector3::zAxis(5.0f);
+            const Vector3 eye = Vector3::zAxis(500.0f);
             const Vector3 center{};
             const Vector3 up = Vector3::yAxis();
             const Deg fov = 45.0_degf;
@@ -309,7 +298,7 @@ namespace Magnum
         if (Math::abs(delta) < 1.0e-2f)
             return;
 
-        _arcballCamera->zoom(delta);
+        _arcballCamera->zoom(20 * delta);
 
         event.setAccepted();
     }
