@@ -24,8 +24,8 @@
 #include "./components/arcball/ArcBallCamera.h"
 #include "./content/Grid.h"
 #include "./content/Skybox.h"
+#include "./core/Data.h"
 #include "./core/Simulation.h"
-#include "./core/Simulation_old.h"
 #include "Version.h"
 
 namespace Magnum
@@ -49,30 +49,22 @@ namespace Magnum
         void mouseScrollEvent(MouseScrollEvent &event) override;
         void textInputEvent(TextInputEvent &event) override;
 
-        ImGuiIntegration::Context _imgui{NoCreate};
-        bool _showDemoWindow = false;
-        Color3 _clearColor = Color3(1.0f, 1.0f, 0.0f);
-        // Simulation
-        Double _pvdW1 = 1.5591; // Double _pvdW1min = -5.0; Double _pvdW1max = 5.0;
-        Double _cutoff_vpar30 = 0.0100;
-        UnsignedInt _nso = 7, _nboty = 18;
-        Double _plp1param = 3.5895;
-        Double _povun3param = 38.5241,
-               _povun4param = 3.4021,
-               _povun6param = 1.0701,
-               _povun7param = 11.9083,
-               _povun8param = 13.3822;
-        UnsignedLong _NATOMS = 100;
+        ImGuiIntegration::Context imgui{NoCreate};
+        bool showDemoWindow = false;
 
-        Scene3D _scene;
-        SceneGraph::DrawableGroup3D _drawables;
-        Containers::Pointer<SimulationOld> _simulation;
-        Containers::Pointer<Simulation> _newSimulation;
-        Containers::Optional<ArcBallCamera> _arcballCamera;
+        Scene3D scene;
+        SceneGraph::DrawableGroup3D drawables;
+        Containers::Pointer<Simulation> simulation;
 
-        bool _drawOctreeBounds = true;
-        bool _paused = true;
-        bool _skipFrame = false;
+        //? Parameters
+        std::size_t atomCount = 50;
+        Float atomRadius = 2.0;
+        Float randomVelocity = 1.0;
+
+        Containers::Optional<ArcBallCamera> arcballCamera;
+
+        bool paused = false;
+        bool skipFrame = false;
     };
     RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
     {
@@ -94,8 +86,8 @@ namespace Magnum
                 create(conf, glConf.setSampleCount(0));
             }
         }
-        _imgui = ImGuiIntegration::Context(Vector2{windowSize()} / dpiScaling(),
-                                           windowSize(), framebufferSize());
+        imgui = ImGuiIntegration::Context(Vector2{windowSize()} / dpiScaling(),
+                                          windowSize(), framebufferSize());
 
         GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add, GL::Renderer::BlendEquation::Add);
         GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha, GL::Renderer::BlendFunction::OneMinusSourceAlpha);
@@ -104,10 +96,9 @@ namespace Magnum
 
         /* INFO Initialize scene objects */
         {
-            new Skybox(_scene, _drawables, 500.0f);
-            new Grid(_scene, _drawables, 200.0f, Vector2i{40}, Color3{0.7f});
-            _simulation.emplace(_scene, _drawables, UnsignedInt(100), _drawOctreeBounds);
-            _newSimulation.emplace();
+            new Skybox(scene, drawables, 5000.0f);
+            new Grid(scene, drawables, 400.0f, Vector2i{31}, Color3{0.7f});
+            simulation.emplace(scene, drawables);
         }
 
         /* INFO Camera */
@@ -116,8 +107,8 @@ namespace Magnum
             const Vector3 center{};
             const Vector3 up = Vector3::yAxis();
             const Deg fov = 45.0_degf;
-            _arcballCamera.emplace(_scene, eye, center, up, fov, windowSize(), framebufferSize());
-            _arcballCamera->setLagging(0.85f);
+            arcballCamera.emplace(scene, eye, center, up, fov, windowSize(), framebufferSize());
+            arcballCamera->setLagging(0.85f);
         }
         /* Loop at 60 Hz max (16)*/
         setSwapInterval(1);
@@ -128,20 +119,19 @@ namespace Magnum
     {
         GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-        if (!_paused || _skipFrame)
+        if (!paused || skipFrame)
         {
-            _skipFrame = false;
-
-            _simulation->updateOctree();
-            _simulation->updateAtoms();
+            skipFrame = false;
+            simulation->UPDATE_OCTREE();
+            simulation->UPDATE_ATOMS();
         }
 
         /* Update camera */
-        // ! unused variable [bool camChanged = _arcballCamera->update();]
-        _arcballCamera->update();
-        _arcballCamera->draw(_drawables);
+        // ! unused variable [bool camChanged = arcballCamera->update();]
+        arcballCamera->update();
+        arcballCamera->draw(drawables);
 
-        _imgui.newFrame();
+        imgui.newFrame();
         /* Enable text input, if needed */
         if (ImGui::GetIO().WantTextInput && !isTextInputActive())
         {
@@ -156,35 +146,27 @@ namespace Magnum
         {
             ImGui::Text("Auksts laiks, bet silta mana sirds.");
             if (ImGui::Button("Demo window"))
-                _showDemoWindow ^= true;
-            ImGui::Text("|| SIMULATION ||");
-            // ImGui::SliderScalar("vdWaals shielding", ImGuiDataType_Double, &_pvdW1, &_pvdW1min, &_pvdW1max);
-            // ImGui::InputScalar("Atom types", ImGuiDataType_U32, &_nso);
-            // ImGui::InputScalar("Bonds", ImGuiDataType_U32, &_nboty);
-            // ImGui::InputDouble("vdWaals shielding", &_pvdW1);
-            // ImGui::InputDouble("Cutoff for bond order (*100)", &_cutoff_vpar30);
-            // ImGui::InputDouble("Valency angle/lone pair parameter", &_plp1param);
-            // ImGui::InputDouble("Overcoordination <povun3>", &_povun3param);
-            // ImGui::InputDouble("Overcoordination <povun4>", &_povun4param);
-            // ImGui::InputDouble("Undercoordination <povun6>", &_povun6param);
-            // ImGui::InputDouble("Undercoordination <povun7>", &_povun7param);
-            // ImGui::InputDouble("Undercoordination <povun8>", &_povun8param);
-            if (ImGui::ColorEdit3("Atom color", _clearColor.data()))
-                _simulation->updateColor(_clearColor);
+                showDemoWindow ^= true;
+            ImGui::Text("SIMULATION");
+            // if (ImGui::ColorEdit3("Atom color", _clearColor.data()))
+            // oldSimulation->updateColor(_clearColor);
+            ImGui::InputScalar("<NATOMS>", ImGuiDataType_U64, &atomCount);
+            ImGui::InputFloat("<RADIUS>", &atomRadius);
+            ImGui::InputFloat("<VELOCITY>", &randomVelocity);
             if (ImGui::Button("Run Simulation"))
-                _newSimulation->RUN();
+                simulation->RUN(SimulationParameters{atomCount, atomRadius, randomVelocity});
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                         1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }
 
-        if (_showDemoWindow)
+        if (showDemoWindow)
         {
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
             ImGui::ShowDemoWindow();
         }
 
         /* Update application cursor */
-        _imgui.updateApplicationCursor(*this);
+        imgui.updateApplicationCursor(*this);
 
         /* Set appropriate states. If you only draw ImGui, it is sufficient to
            just enable blending and scissor test in the constructor. */
@@ -193,7 +175,7 @@ namespace Magnum
         GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
         GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
 
-        _imgui.drawFrame();
+        imgui.drawFrame();
 
         GL::Renderer::disable(GL::Renderer::Feature::Blending);
         GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
@@ -208,9 +190,9 @@ namespace Magnum
     void RMD::viewportEvent(ViewportEvent &event)
     {
         GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
-        _imgui.relayout(Vector2{event.windowSize()} / event.dpiScaling(),
-                        event.windowSize(), event.framebufferSize());
-        _arcballCamera->reshape(event.windowSize(), event.framebufferSize());
+        imgui.relayout(Vector2{event.windowSize()} / event.dpiScaling(),
+                       event.windowSize(), event.framebufferSize());
+        arcballCamera->reshape(event.windowSize(), event.framebufferSize());
     }
 
     void RMD::keyPressEvent(KeyEvent &event)
@@ -218,19 +200,19 @@ namespace Magnum
         switch (event.key())
         {
         case KeyEvent::Key::B:
-            _drawOctreeBounds ^= true;
+            drawOctreeBounds ^= true;
             break;
         case KeyEvent::Key::R:
-            _arcballCamera->reset();
+            arcballCamera->reset();
             break;
         case KeyEvent::Key::Space:
-            _paused ^= true;
+            paused ^= true;
             break;
         case KeyEvent::Key::Right:
-            _skipFrame = true;
+            skipFrame = true;
             break;
         default:
-            if (_imgui.handleKeyPressEvent(event))
+            if (imgui.handleKeyPressEvent(event))
             {
                 event.setAccepted();
             }
@@ -239,13 +221,13 @@ namespace Magnum
 
     void RMD::keyReleaseEvent(KeyEvent &event)
     {
-        if (_imgui.handleKeyReleaseEvent(event))
+        if (imgui.handleKeyReleaseEvent(event))
             return;
     }
 
     void RMD::mousePressEvent(MouseEvent &event)
     {
-        if (_imgui.handleMousePressEvent(event))
+        if (imgui.handleMousePressEvent(event))
             return;
 
         /* Enable mouse capture so the mouse can drag outside of the window */
@@ -253,17 +235,17 @@ namespace Magnum
         SDL_CaptureMouse(SDL_TRUE);
 
         if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
-            _arcballCamera->initTransformation(event.position(), 1);
+            arcballCamera->initTransformation(event.position(), 1);
         else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
-            _arcballCamera->initTransformation(event.position(), 2);
+            arcballCamera->initTransformation(event.position(), 2);
         else
-            _arcballCamera->initTransformation(event.position(), 0);
+            arcballCamera->initTransformation(event.position(), 0);
         event.setAccepted();
     }
 
     void RMD::mouseReleaseEvent(MouseEvent &event)
     {
-        if (_imgui.handleMouseReleaseEvent(event))
+        if (imgui.handleMouseReleaseEvent(event))
             return;
         /* Disable mouse capture again */
         /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
@@ -272,40 +254,40 @@ namespace Magnum
 
     void RMD::mouseMoveEvent(MouseMoveEvent &event)
     {
-        if (_imgui.handleMouseMoveEvent(event))
+        if (imgui.handleMouseMoveEvent(event))
             return;
 
         if (!event.buttons())
             return;
 
         if (event.modifiers() & MouseMoveEvent::Modifier::Shift)
-            _arcballCamera->translate(event.position());
+            arcballCamera->translate(event.position());
         else if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
-            _arcballCamera->rotate(event.position(), 1);
+            arcballCamera->rotate(event.position(), 1);
         else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
-            _arcballCamera->rotate(event.position(), 2);
+            arcballCamera->rotate(event.position(), 2);
         else
-            _arcballCamera->rotate(event.position(), 0);
+            arcballCamera->rotate(event.position(), 0);
         event.setAccepted();
     }
 
     void RMD::mouseScrollEvent(MouseScrollEvent &event)
     {
-        if (_imgui.handleMouseScrollEvent(event))
+        if (imgui.handleMouseScrollEvent(event))
             return;
 
         const Float delta = event.offset().y();
         if (Math::abs(delta) < 1.0e-2f)
             return;
 
-        _arcballCamera->zoom(20 * delta);
+        arcballCamera->zoom(50 * delta);
 
         event.setAccepted();
     }
 
     void RMD::textInputEvent(TextInputEvent &event)
     {
-        if (_imgui.handleTextInputEvent(event))
+        if (imgui.handleTextInputEvent(event))
             event.setAccepted();
         return;
     }

@@ -58,7 +58,6 @@ add_executable(RMD
     ./content/Grid.cpp
     ./components/scene/Scene.cpp
     ./core/Simulation.cpp
-    ./core/Simulation_old.cpp
     ./core/Functions.cpp
     ./core/Data.cpp)
 

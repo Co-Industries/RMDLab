@@ -11,10 +11,10 @@ namespace Magnum
     void QEq()
     {
         // Method 1 (Original QEq)
-        for (UnsignedLong i = 0; i < NATOMS; ++i)
+        for (std::size_t i = 0; i < NATOMS; ++i)
         {
-            qsfp[i] = q[i];
-            qs[i] = q[i];
+            atomData[i].qsfp = atomData[i].q;
+            atomData[i].qs = atomData[i].q;
         }
         // TODO Implement case(2) Extender Lagrangian method (prob better performance)
     }

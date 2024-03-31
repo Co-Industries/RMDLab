@@ -54,6 +54,9 @@ class ArcBall {
         /* Reset the camera to its initial position, view center, and up dir */
         void reset();
 
+        /* Reset camera rotation, align to grid*/
+        void align();
+
         /* Update screen size after the window has been resized */
         void reshape(const Vector2i& windowSize) { _windowSize = windowSize; }
 

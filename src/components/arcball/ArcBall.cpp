@@ -88,6 +88,12 @@ void ArcBall::reset() {
     _targetQRotation = _qRotationT0;
 }
 
+void ArcBall::align()
+{
+    _targetQRotation = Quaternion(Vector3(0.0, _targetQRotation.vector().y(), 0.0), _targetQRotation.scalar()).normalized();
+    Debug{} << _targetQRotation;
+}
+
 void ArcBall::setLagging(const Float lagging) {
     CORRADE_INTERNAL_ASSERT(lagging >= 0.0f && lagging < 1.0f);
     _lagging = lagging;
@@ -96,10 +102,16 @@ void ArcBall::setLagging(const Float lagging) {
 void ArcBall::initTransformation(const Vector2i &mousePos, const int &mode)
 {
     _prevMousePosNDC = screenCoordToNDC(mousePos);
-    if (mode == 1)
+    switch (mode)
+    {
+    case 1:
+        align();
         _prevMousePosNDC = {_prevMousePosNDC.x(), 0.0f};
-    else if (mode == 2)
+        break;
+    case 2:
         _prevMousePosNDC = {0.0f, _prevMousePosNDC.y()};
+        break;
+    }
 }
 
 void ArcBall::rotate(const Vector2i &mousePos, const int &mode)
