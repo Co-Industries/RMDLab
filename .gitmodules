@@ -7,3 +7,9 @@
 [submodule "corrade"]
 	path = corrade
 	url = https://github.com/mosra/corrade
+[submodule "SDL"]
+	path = SDL
+	url = https://github.com/libsdl-org/SDL
+[submodule "rxmd"]
+	path = rxmd
+	url = https://github.com/USCCACS/RXMD.git
