@@ -1,0 +1,9 @@
+[submodule "magnum-integration"]
+	path = magnum-integration
+	url = https://github.com/mosra/magnum-integration
+[submodule "magnum"]
+	path = magnum
+	url = https://github.com/mosra/magnum
+[submodule "corrade"]
+	path = corrade
+	url = https://github.com/mosra/corrade
