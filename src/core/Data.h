@@ -21,13 +21,14 @@ namespace Magnum
     {
         std::size_t type;
         Vector3d position, velocity;
-        Double q, qs, qt, gs, gt, qsfp, qsfv, deltap0; // deltap1 instead of deltap[0]
+        Double q, qs, qt, qsfp, qsfv, deltap0; // deltap1 instead of deltap[0]
+        Double gs, gt;                         /* gradient */
+        Double hs, ht;                         /* conjugate direction */
         Double delta;
-        Containers::Array<Double> hessian;
-        Containers::Array<std::size_t> neighbors;
-        Containers::Array<std::size_t> bonds;
-        Containers::Array<Vector3d> bo, dln_BOp;
-        Containers::Array<Double> dBOp, bo_sum, A0, A1, A2, A3;
+        Containers::Array<Double> hessian, dpq2;
+        Containers::Array<std::size_t> neighbors, bonds;
+        Containers::Array<Vector3d> bo, BO, dln_BOp;
+        Containers::Array<Double> dBOp, bo_sum, BO_sum, A0, A1, A2, A3;
         Containers::StaticArray<3, Double> deltap;
     };
     extern Containers::Array<AtomData> atomData;
@@ -62,20 +63,22 @@ namespace Magnum
 
     // * Simulation constants
     extern const Float atomRange; // [rctap0]
-    extern const Int NMAXQEq;     // Number of MAXimum iteration in QEq routine
+    extern const std::size_t NMAXQEq; // Number of MAXimum iteration in QEq routine
     extern const Float rctap0;    // [10A]
     extern const std::size_t NTABLE;
     extern const Double MINBOSIG; /* <minBOsig>: criterion to decide <rc> */
     extern const Double cutof2_bo;
     extern const Double vpar30;       /* Cutoff for bond order (*100) */
     extern const Double vpar1, vpar2; /* Overcoordination parameter [ffield]*/
+    extern const Double QEq_tol;      /* <QEq_thrsld> energy criterion in QEq routine */
 
     // ? Coulomb Energy (eq. 22)
-    extern const Double Cclmb0_qeq;
+    extern const Double Cclmb0_qeq; /* [ev] */
+    extern const Double CEchrge; /* [ev] */
 
     extern Float rctap, rctap2;
     extern Float UDR, UDRi;
-    extern Containers::StaticArray<5000, Containers::Array<Double>> TBL_Eclmb_QEq; // 5000 = NTABLE
+    extern Containers::StaticArray<5001, Containers::Array<Double>> TBL_Eclmb_QEq; // 5000 = NTABLE (+1 for itb + 1 = 0)
     extern Containers::StaticArray<8, Double> CTap;
     extern Double cutoff_vpar30; /* cutoff_vpar30 = cutof2_bo*vpar30, used in BOPRIM() */
 
@@ -87,6 +90,11 @@ namespace Magnum
 
     //? BOPRIM
     extern Containers::StaticArray<3, Double> arg_BOpij;
+
+    //? ENbond
+    // 0-Esystem, 1-Ebond, 2-Elp, 3-Eover, 4-Eunder, 5-Eval, 6-Epen
+    // 7-Ecoa,  8-Etors, 9-Econj, 10-Ehbond, 11-Evdwaals, 12-Ecoulomb 13-Echarge
+    extern Containers::StaticArray<14, Double> PE; /* Potential Energies */
 }
 
 #endif

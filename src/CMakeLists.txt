@@ -50,7 +50,7 @@ set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 #   !!! add_executable(... WIN32 ...) == NO CONSOLE
 add_executable(RMD
-    RMD_refactor.cpp
+    RMD.cpp
     ./components/octree/LooseOctree.h
     ./components/octree/LooseOctree.cpp
     ./components/arcball/Arcball.cpp

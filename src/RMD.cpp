@@ -1,689 +1,296 @@
+
+/* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 #include <Corrade/Containers/GrowableArray.h>
 #include <Corrade/Containers/Optional.h>
 #include <Corrade/Containers/Pointer.h>
 #include <Corrade/Utility/Arguments.h>
 
-#include <Magnum/Platform/Sdl2Application.h>
-#include <Magnum/DebugTools/FrameProfiler.h>
-
 #include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/GL/Mesh.h>
 #include <Magnum/GL/Renderer.h>
 
 #include <Magnum/Math/Color.h>
-#include <Magnum/Math/Matrix4.h>
+#include <Magnum/Math/Vector.h>
+#include <Magnum/Math/Vector3.h>
 
-#include <Magnum/Primitives/Icosphere.h>
-#include <Magnum/Primitives/Cube.h>
-#include <Magnum/Primitives/Grid.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
+#include <Magnum/Platform/Sdl2Application.h>
 
-#include <Magnum/Shaders/FlatGL.h>
-#include <Magnum/Shaders/VertexColorGL.h>
-#include <Magnum/Shaders/PhongGL.h>
+#include <Magnum/SceneGraph/Drawable.h>
+#include <Magnum/SceneGraph/MatrixTransformation3D.h>
+#include <Magnum/SceneGraph/Object.h>
+#include <Magnum/SceneGraph/Scene.h>
 
-#include <Magnum/Trade/MeshData.h>
-#include <Magnum/Trade/Data.h>
-
-#include <Magnum/MeshTools/Compile.h>
-#include <Magnum/MeshTools/Interleave.h>
-#include <Magnum/MeshTools/FlipNormals.h>
-#include <Magnum/MeshTools/Copy.h>
-#include <Magnum/MeshTools/Transform.h>
-
-#include "./octree/LooseOctree.h"
-#include "./arcball/ArcBall.h"
-
-#include "./scene/Scene.h"
+#include "./components/arcball/ArcBall.h"
+#include "./components/arcball/ArcBallCamera.h"
+#include "./content/Grid.h"
+#include "./content/Skybox.h"
+#include "./core/Data.h"
+#include "./core/Simulation.h"
+#include "Version.h"
 
 namespace Magnum
 
-/* CHANGE */
 {
-  struct AtomData
-  {
-    bool isColliding;
-    std::size_t lastCollision;
-    float hue;
-  };
+    using namespace Math::Literals;
 
-  struct AtomInstanceData
-  {
-    Matrix4 transformationMatrix;
-    Matrix3x3 normalMatrix;
-    Color3 color;
-  };
-
-  struct BoxInstanceData
-  {
-    Matrix4 transformationMatrix;
-    Color3 color;
-  };
-
-  struct GridData
-  {
-    Matrix4 transformationMatrix;
-    Color3 color;
-  };
-
-  struct BackgroundData
-  {
-    Matrix4 transformationMatrix;
-  };
-
-  class RMD : public Platform::Application
-  {
-  public:
-    explicit RMD(const Arguments &arguments);
-
-  protected:
-    void viewportEvent(ViewportEvent &event) override;
-    void keyPressEvent(KeyEvent &event) override;
-    void drawEvent() override;
-    void mousePressEvent(MouseEvent &event) override;
-    void mouseReleaseEvent(MouseEvent &event) override;
-    void mouseMoveEvent(MouseMoveEvent &event) override;
-    void mouseScrollEvent(MouseScrollEvent &event) override;
-
-    void movePoints();
-    void collisionDetectionAndHandlingBruteForce();
-    void collisionDetectionAndHandlingUsingOctree();
-    bool findCollision(const Containers::Array<Int> &collisions, Int value);
-    void removeCollision(Containers::Array<Int> &collisions, Int value);
-    void checkCollisionWithSubTree(const OctreeNode &node, std::size_t i,
-                                   const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds);
-    void drawBackground();
-    void drawAtoms();
-    void drawTreeNodeBoundingBoxes();
-
-    Containers::Optional<ArcBall> _arcballCamera;
-    Matrix4 _projectionMatrix;
-
-    Containers::Array<AtomData> _atomData;
-    bool _paused = false;
-    bool _skipFrame = false;
-
-    /* Points data as spheres with size */
-    Containers::Array<Vector3> _atomPositions;
-    Containers::Array<Vector3> _atomVelocities;
-    Float _atomRadius, _atomVelocity;
-    bool _animation = true;
-    bool _collisionDetectionByOctree = true;
-
-    /* RMD and boundary boxes */
-    Containers::Pointer<LooseOctree> _octree;
-
-    /* Profiling */
-    DebugTools::FrameProfilerGL _profiler{
-        DebugTools::FrameProfilerGL::Value::FrameTime |
-            DebugTools::FrameProfilerGL::Value::CpuDuration,
-        180};
-
-    /* Atom rendering */
-    GL::Mesh _sphereMesh{NoCreate};
-    GL::Buffer _atomInstanceBuffer{NoCreate};
-    Shaders::PhongGL _atomShader{NoCreate};
-    Containers::Array<AtomInstanceData> _atomInstanceData;
-
-    /* Treenode bounding boxes rendering */
-    GL::Mesh _boxMesh{NoCreate};
-    GL::Buffer _boxInstanceBuffer{NoCreate};
-    Shaders::FlatGL3D _boxShader{NoCreate};
-    Containers::Array<BoxInstanceData> _boxInstanceData;
-    bool _drawBoundingBoxes = true;
-
-    /* Background rendering */
-    GL::Mesh _backgroundMesh{NoCreate};
-    GL::Buffer _backgroundBuffer{NoCreate};
-    GL::Buffer _backgroundVertexColorBuffer{NoCreate};
-    Shaders::FlatGL3D _backgroundShader{NoCreate};
-    Containers::Array<BackgroundData> _backgroundData;
-    Trade::MeshData _backgroundMeshData = Primitives::icosphereSolid(4);
-    Containers::Array<Color3> _backgroundVertexColors;
-    GL::Mesh _gridMesh{NoCreate};
-    GL::Buffer _gridBuffer{NoCreate};
-    Shaders::FlatGL3D _gridShader{NoCreate};
-    Containers::Array<GridData> _gridData;
-  };
-
-  using namespace Math::Literals;
-
-  RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
-  {
-    Utility::Arguments args;
-    args.addOption('s', "spheres", "75")
-        .setHelp("spheres", "number of spheres to simulate", "N")
-        .addOption('r', "sphere-radius", "0.1")
-        .setHelp("sphere-radius", "sphere radius", "R")
-        .addOption('v', "sphere-velocity", "0.3")
-        .setHelp("sphere-velocity", "sphere velocity", "V")
-        .addSkippedPrefix("magnum")
-        .parse(arguments.argc, arguments.argv);
-
-    _atomRadius = args.value<Float>("sphere-radius");
-    _atomVelocity = args.value<Float>("sphere-velocity");
-
-    /* Setup window and parameters */
+    class RMD : public Platform::Application
     {
-      const Vector2 dpiScaling = this->dpiScaling({});
-      Configuration conf;
-      conf.setTitle("RMD v0.1.2.1")
-          .setSize(conf.size(), dpiScaling)
-          .setWindowFlags(Configuration::WindowFlag::Resizable);
-      GLConfiguration glConf;
-      glConf.setSampleCount(dpiScaling.max() < 2.0f ? 8 : 2);
-      if (!tryCreate(conf, glConf))
-      {
-        create(conf, glConf.setSampleCount(0));
-      }
+    public:
+        explicit RMD(const Arguments &arguments);
 
-      GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-      GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+    private:
+        void drawEvent() override;
+        void viewportEvent(ViewportEvent &event) override;
+        void keyPressEvent(KeyEvent &event) override;
+        void keyReleaseEvent(KeyEvent &event) override;
+        void mousePressEvent(MouseEvent &event) override;
+        void mouseReleaseEvent(MouseEvent &event) override;
+        void mouseMoveEvent(MouseMoveEvent &event) override;
+        void mouseScrollEvent(MouseScrollEvent &event) override;
+        void textInputEvent(TextInputEvent &event) override;
 
-      /* Loop at 60 Hz max */
-      setSwapInterval(1);
-      /* 16 */
-      setMinimalLoopPeriod(16);
-    }
+        ImGuiIntegration::Context imgui{NoCreate};
+        bool showDemoWindow = false;
 
-    /* Setup camera */
+        Scene3D scene;
+        SceneGraph::DrawableGroup3D drawables;
+        Containers::Pointer<Simulation> simulation;
+
+        //? Parameters
+        std::size_t atomCount = 50;
+        Float atomRadius = 2.0;
+        Float randomVelocity = 1.0;
+
+        Containers::Optional<ArcBallCamera> arcballCamera;
+
+        bool paused = false;
+        bool skipFrame = false;
+    };
+    RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
     {
-      const Vector3 eye = Vector3::zAxis(5.0f);
-      const Vector3 viewCenter;
-      const Vector3 up = Vector3::yAxis();
-      const Deg fov = 45.0_degf;
-      _arcballCamera.emplace(eye, viewCenter, up, fov, windowSize());
-      _arcballCamera->setLagging(0.85f);
-
-      _projectionMatrix = Matrix4::perspectiveProjection(fov,
-                                                         Vector2{framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
-    }
-
-    /* Setup background */
-    {
-      /*
-      for (Vector3 vertex : _backgroundMeshData.positions3DAsArray())
-      {
-        float yValue = (vertex.y() + 1.0f) / 2.0f;
-        Color3 color = Color3::fromHsv(ColorHsv((360.0_degf) * yValue, 1.0f, 1.0f));
-        arrayAppend(_backgroundVertexColors, InPlaceInit, color);
-      }
-      */
-      Trade::MeshData _backgroundMutableData = MeshTools::copy(_backgroundMeshData);
-      MeshTools::flipFaceWindingInPlace(_backgroundMutableData.mutableIndices());
-      /* INFO Flip Normals
-      MeshTools::flipNormalsInPlace(_backgroundMeshDataMutable.mutableAttribute<Vector3>(Trade::MeshAttribute::Normal));
-      */
-
-      _backgroundMesh = MeshTools::compile(_backgroundMutableData);
-
-      _backgroundShader = Shaders::FlatGL3D{Shaders::FlatGL3D::Configuration{}.setFlags(Shaders::FlatGL3D::Flag::VertexColor | Shaders::FlatGL3D::Flag::InstancedTransformation)};
-      _backgroundVertexColorBuffer = GL::Buffer{};
-      for (Vector3 vertex : _backgroundMeshData.positions3DAsArray())
-      {
-        float yValue = (vertex.y() + 0.2f) / 8.0f + 0.3f;
-        Color3 color = Color3({yValue});
-        arrayAppend(_backgroundVertexColors, InPlaceInit, color);
-      }
-      _backgroundVertexColorBuffer.setData(_backgroundVertexColors, GL::BufferUsage::DynamicDraw);
-
-      _backgroundMesh.addVertexBuffer(_backgroundVertexColorBuffer, 0, Shaders::FlatGL3D::Color3{});
-      _backgroundBuffer = GL::Buffer{};
-      _backgroundMesh.addVertexBufferInstanced(_backgroundBuffer, 1, 0, Shaders::FlatGL3D::TransformationMatrix{});
-
-      _gridMesh = MeshTools::compile(Primitives::grid3DWireframe({16, 16}));
-      _gridShader = Shaders::FlatGL3D{Shaders::FlatGL3D::Configuration{}.setFlags(Shaders::FlatGL3D::Flag::VertexColor | Shaders::FlatGL3D::Flag::InstancedTransformation)};
-      _gridBuffer = GL::Buffer{};
-      _gridMesh.addVertexBufferInstanced(_gridBuffer, 1, 0, Shaders::FlatGL3D::TransformationMatrix{}, Shaders::FlatGL3D::Color3{});
-    }
-
-    /* Setup atoms (render as spheres) */
-    {
-      const UnsignedInt numSpheres = args.value<UnsignedInt>("spheres");
-      _atomPositions = Containers::Array<Vector3>{NoInit, numSpheres};
-      _atomVelocities = Containers::Array<Vector3>{NoInit, numSpheres};
-      _atomInstanceData = Containers::Array<AtomInstanceData>{NoInit, numSpheres};
-      _atomData = Containers::Array<AtomData>{NoInit, numSpheres};
-
-      for (std::size_t i = 0; i < numSpheres; ++i)
-      {
-        const Vector3 tmpPos = Vector3(std::rand(), std::rand(), std::rand()) /
-                               Float(RAND_MAX);
-        const Vector3 tmpVel = Vector3(std::rand(), std::rand(), std::rand()) /
-                               Float(RAND_MAX);
-        _atomPositions[i] = tmpPos * 2.0f - Vector3{1.0f};
-        _atomPositions[i].y() *= 0.5f;
-        _atomVelocities[i] = (tmpVel * 2.0f - Vector3{1.0f}).resized(_atomVelocity);
-
-        /* Fill in the instance data. Most of this stays the same, except
-           for the translation */
-        _atomInstanceData[i].transformationMatrix =
-            Matrix4::translation(_atomPositions[i]) *
-            Matrix4::scaling(Vector3{_atomRadius});
-        _atomInstanceData[i].normalMatrix =
-            _atomInstanceData[i].transformationMatrix.normalMatrix();
-        _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
-      }
-
-      _atomShader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-                                         .setFlags(Shaders::PhongGL::Flag::VertexColor |
-                                                   Shaders::PhongGL::Flag::InstancedTransformation)};
-      _atomInstanceBuffer = GL::Buffer{};
-      _sphereMesh = MeshTools::compile(Primitives::icosphereSolid(2));
-      _sphereMesh.addVertexBufferInstanced(_atomInstanceBuffer, 1, 0,
-                                           Shaders::PhongGL::TransformationMatrix{},
-                                           Shaders::PhongGL::NormalMatrix{},
-                                           Shaders::PhongGL::Color3{});
-      _sphereMesh.setInstanceCount(_atomInstanceData.size());
-    }
-
-    /* Setup octree */
-    {
-      /* RMD nodes should have half width no smaller than the sphere
-         radius */
-      _octree.emplace(Vector3{0}, 1.0f, Math::max(_atomRadius, 0.1f));
-
-      _octree->setPoints(_atomPositions);
-      _octree->build();
-      Debug{} << "  Allocated nodes:" << _octree->numAllocatedNodes();
-      Debug{} << "  Max number of points per node:" << _octree->maxNumPointInNodes();
-
-      /* Disable profiler by default */
-      _profiler.disable();
-    }
-
-    /* Treenode bounding boxes render variables */
-    {
-      _boxShader = Shaders::FlatGL3D{Shaders::FlatGL3D::Configuration{}
-                                         .setFlags(Shaders::FlatGL3D::Flag::VertexColor |
-                                                   Shaders::FlatGL3D::Flag::InstancedTransformation)};
-      _boxInstanceBuffer = GL::Buffer{};
-      _boxMesh = MeshTools::compile(Primitives::cubeWireframe());
-      _boxMesh.addVertexBufferInstanced(_boxInstanceBuffer, 1, 0,
-                                        Shaders::FlatGL3D::TransformationMatrix{},
-                                        Shaders::FlatGL3D::Color3{});
-    }
-
-    Debug{} << "Collision detection using octree";
-  }
-
-  void RMD::drawEvent()
-  {
-    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
-
-    if (!_paused || _skipFrame)
-    {
-      _skipFrame = false;
-      collisionDetectionAndHandlingUsingOctree();
-      movePoints();
-      _octree->update();
-    }
-    /* Update camera before drawing instances */
-    const bool moving = _arcballCamera->updateTransformation();
-
-    drawBackground();
-    drawAtoms();
-    drawTreeNodeBoundingBoxes();
-
-    swapBuffers();
-
-    /* If the camera is moving or the animation is running, redraw immediately */
-    if (moving || _animation)
-      redraw();
-  }
-
-  void RMD::collisionDetectionAndHandlingBruteForce()
-  {
-    for (std::size_t i = 0; i < _atomPositions.size(); ++i)
-    {
-      const Vector3 ppos = _atomPositions[i];
-      const Vector3 pvel = _atomVelocities[i];
-      for (std::size_t j = i + 1; j < _atomPositions.size(); ++j)
-      {
-        const Vector3 qpos = _atomPositions[j];
-        const Vector3 qvel = _atomVelocities[j];
-        const Vector3 velpq = pvel - qvel;
-        const Vector3 pospq = ppos - qpos;
-        const Float vp = Math::dot(velpq, pospq);
-        if (vp < 0.0f)
+        /* INFO Settings */
+        Utility::Arguments args;
+        args.addSkippedPrefix("magnum")
+            .parse(arguments.argc, arguments.argv);
+        /* INFO Window and parameters */
         {
-          const Float dpq = pospq.length();
-          if (dpq < 2.0f * _atomRadius)
-          {
-            const Vector3 vNormal = vp * pospq / (dpq * dpq);
-            _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
-            _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
-          }
+            const Vector2 dpiScaling = this->dpiScaling({});
+            Configuration conf;
+            conf.setTitle(std::string("RMD ") + std::string(RMD_VERSION))
+                .setSize(conf.size(), dpiScaling)
+                .setWindowFlags(Configuration::WindowFlag::Resizable);
+            GLConfiguration glConf;
+            glConf.setSampleCount(dpiScaling.max() < 2.0f ? 8 : 2);
+            if (!tryCreate(conf, glConf))
+            {
+                create(conf, glConf.setSampleCount(0));
+            }
         }
-      }
-    }
-  }
+        imgui = ImGuiIntegration::Context(Vector2{windowSize()} / dpiScaling(),
+                                          windowSize(), framebufferSize());
 
-  void RMD::collisionDetectionAndHandlingUsingOctree()
-  {
-    const OctreeNode &rootNode = _octree->rootNode();
-    for (std::size_t i = 0; i < _atomPositions.size(); ++i)
-    {
-      checkCollisionWithSubTree(rootNode, i,
-                                _atomPositions[i], _atomVelocities[i],
-                                Range3D::fromCenter(_atomPositions[i], Vector3{_atomRadius}));
-    }
-  }
+        GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add, GL::Renderer::BlendEquation::Add);
+        GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha, GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+        GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+        GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
 
-  bool RMD::findCollision(const Containers::Array<Int> &collisions, Int value)
-  {
-    for (Int collision : collisions)
-    {
-      if (collision == value)
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void RMD::removeCollision(Containers::Array<Int> &collisions, Int value)
-  {
-    arrayResize(collisions, 0);
-    for (Int collision : collisions)
-    {
-      if (collision == value)
-      {
-        continue;
-      }
-      arrayAppend(collisions, InPlaceInit, collision);
-    }
-  }
-
-  void RMD::checkCollisionWithSubTree(const OctreeNode &node,
-                                      std::size_t i, const Vector3 &ppos, const Vector3 &pvel, const Range3D &bounds)
-  {
-    if (!node.looselyOverlaps(bounds))
-      return;
-
-    if (!node.isLeaf())
-    {
-      for (std::size_t childIdx = 0; childIdx < 8; ++childIdx)
-      {
-        const OctreeNode &child = node.childNode(childIdx);
-        checkCollisionWithSubTree(child, i, ppos, pvel, bounds);
-      }
-    }
-
-    for (const OctreePoint *const point : node.pointList())
-    {
-      const std::size_t j = point->idx();
-      if (j > i)
-      {
-        const Vector3 qpos = _atomPositions[j];
-        const Vector3 pospq = ppos - qpos;
-        const Vector3 qvel = _atomVelocities[j];
-        const Vector3 velpq = pvel - qvel;
-        const Float vp = Math::dot(velpq, pospq);
-        /* INFO Velocity vector, to stop attraction*/
-        /*if (vp < 0.0f) {
-        }*/
-        const Float dpq = pospq.length();
-        if (dpq < 2.0f * _atomRadius)
+        /* INFO Initialize scene objects */
         {
-
-          /* INFO - Collisions*/
-          const Vector3 vNormal = vp * pospq / (dpq * dpq);
-          _atomVelocities[i] = (_atomVelocities[i] - vNormal).resized(_atomVelocity);
-          _atomVelocities[j] = (_atomVelocities[j] + vNormal).resized(_atomVelocity);
-          _atomData[i].isColliding = true;
-          _atomData[j].isColliding = true;
-          _atomData[i].lastCollision = j;
-          _atomData[j].lastCollision = i;
-          _atomInstanceData[i].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
-          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[j].hue * 360.0_degf, 1.0, 2.0));
-          _atomData[i].hue += 0.0001f;
-          _atomData[j].hue += 0.0001f;
-          continue;
+            new Skybox(scene, drawables, 5000.0f);
+            new Grid(scene, drawables, 400.0f, Vector2i{31}, Color3{0.7f});
+            simulation.emplace(scene, drawables);
         }
 
-        if (_atomData[i].lastCollision == j)
+        /* INFO Camera */
         {
-          _atomData[i].isColliding = false;
-          _atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+            const Vector3 eye = Vector3::zAxis(500.0f);
+            const Vector3 center{};
+            const Vector3 up = Vector3::yAxis();
+            const Deg fov = 45.0_degf;
+            arcballCamera.emplace(scene, eye, center, up, fov, windowSize(), framebufferSize());
+            arcballCamera->setLagging(0.85f);
         }
-        if (_atomData[j].lastCollision == i)
+        /* Loop at 60 Hz max (16)*/
+        setSwapInterval(1);
+        setMinimalLoopPeriod(16);
+    };
+
+    void RMD::drawEvent()
+    {
+        GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
+
+        if (!paused || skipFrame)
         {
-          _atomData[j].isColliding = false;
-          _atomInstanceData[j].color = Color3(1.0, 0.0, 0.0);
+            skipFrame = false;
+            simulation->UPDATE_OCTREE();
+            simulation->UPDATE_ATOMS();
         }
-        if (_atomData[i].isColliding)
+
+        /* Update camera */
+        // ! unused variable [bool camChanged = arcballCamera->update();]
+        arcballCamera->update();
+        arcballCamera->draw(drawables);
+
+        imgui.newFrame();
+        /* Enable text input, if needed */
+        if (ImGui::GetIO().WantTextInput && !isTextInputActive())
         {
-          _atomInstanceData[i].color = Color3::fromHsv(ColorHsv(_atomData[i].hue * 360.0_degf, 1.0, 2.0));
-          _atomData[i].hue += 0.0001f;
+            startTextInput();
         }
-        if (_atomData[j].isColliding)
+        else if (!ImGui::GetIO().WantTextInput && isTextInputActive())
         {
-          _atomInstanceData[j].color = Color3::fromHsv(ColorHsv(_atomData[j].hue * 360.0_degf, 1.0, 2.0));
-          _atomData[j].hue += 0.0001f;
+            stopTextInput();
         }
-      }
-    }
-  }
-
-  void RMD::movePoints()
-  {
-    constexpr Float dt = 1.0f / 120.0f;
-
-    for (std::size_t i = 0; i < _atomPositions.size(); ++i)
-    {
-      Vector3 pos = _atomPositions[i] + _atomVelocities[i] * dt;
-      for (std::size_t j = 0; j < 3; ++j)
-      {
-        if (pos[j] < -1.0f || pos[j] > 1.0f)
-          _atomVelocities[i][j] = -_atomVelocities[i][j];
-        pos[j] = Math::clamp(pos[j], -1.0f, 1.0f);
-      }
-
-      _atomPositions[i] = pos;
-    }
-  }
-
-  auto _backgroundHueOffset = 0.0_degf;
-  double _backgroundLightnessOffset = -1.0f;
-  bool _backgroundDirection = true;
-  void RMD::drawBackground()
-  {
-
-    /*
-    _backgroundHueOffset += 1.0_degf;
-    _backgroundLightnessOffset += 0.01f;
-    if (_backgroundLightnessOffset >= 1.0f)
-    {
-      _backgroundLightnessOffset = -1.0f;
-    }
-    */
-    /*
-    arrayResize(_backgroundVertexColors, 0);
-    for (Vector3 vertex : _backgroundMeshData.positions3DAsArray())
-    {
-      float yValue = (fabs(_backgroundLightnessOffset));
-      float yValue = (vertex.y() + 0.2f) / 4.0f + 0.3f;
-      Color3 color = Color3::fromHsv(ColorHsv(_backgroundHueOffset + (360.0_degf * yValue), 1.0f, 1.0f));
-      Color3 color = Color3({yValue});
-      arrayAppend(_backgroundVertexColors, InPlaceInit, color);
-    }
-    _backgroundVertexColorBuffer.setData(_backgroundVertexColors, GL::BufferUsage::DynamicDraw);
-    */
-    arrayResize(_backgroundData, 0);
-    arrayAppend(_backgroundData, InPlaceInit,
-                _arcballCamera->viewMatrix() *
-                    Matrix4::translation({_octree->center()}) *
-                    Matrix4::scaling(Vector3{20.f}));
-    _backgroundBuffer.setData(_backgroundData, GL::BufferUsage::DynamicDraw);
-    _backgroundMesh.setInstanceCount(_backgroundData.size());
-    _backgroundShader
-        .setTransformationProjectionMatrix(_projectionMatrix)
-        .draw(_backgroundMesh);
-
-    arrayResize(_gridData, 0);
-    arrayAppend(_gridData, InPlaceInit,
-                _arcballCamera->viewMatrix() *
-                    Matrix4::translation(Vector3(0.0f, -_octree->halfWidth(), 0.0f)) *
-                    Matrix4::translation({_octree->center()}) *
-                    Matrix4::scaling(Vector3{2 * _octree->halfWidth()}) *
-                    Matrix4::rotationX(90.0_degf),
-                Color3(0.7f, 0.7f, 0.7f));
-    _gridBuffer.setData(_gridData, GL::BufferUsage::DynamicDraw);
-    _gridMesh.setInstanceCount(_gridData.size());
-    _gridShader
-        .setTransformationProjectionMatrix(_projectionMatrix)
-        .draw(_gridMesh);
-  }
-
-  void RMD::drawAtoms()
-  {
-    for (std::size_t i = 0; i != _atomPositions.size(); ++i)
-    {
-      _atomInstanceData[i].transformationMatrix.translation() =
-          _atomPositions[i];
-    }
-
-    _atomInstanceBuffer.setData(_atomInstanceData, GL::BufferUsage::DynamicDraw);
-    _atomShader
-        .setProjectionMatrix(_projectionMatrix)
-        .setTransformationMatrix(_arcballCamera->viewMatrix())
-        .setNormalMatrix(_arcballCamera->viewMatrix().normalMatrix())
-        .draw(_sphereMesh);
-  }
-
-  void RMD::drawTreeNodeBoundingBoxes()
-  {
-    arrayResize(_boxInstanceData, 0);
-
-    /* Always draw the root node */
-    arrayAppend(_boxInstanceData, InPlaceInit,
-                _arcballCamera->viewMatrix() *
-                    Matrix4::translation(_octree->center()) *
-                    Matrix4::scaling(Vector3{_octree->halfWidth()}),
-                0x00ffff_rgbf);
-
-    /* Draw the remaining non-empty nodes */
-    if (_drawBoundingBoxes)
-    {
-      const auto &activeTreeNodeBlocks = _octree->activeTreeNodeBlocks();
-      for (OctreeNodeBlock *const pNodeBlock : activeTreeNodeBlocks)
-      {
-        for (std::size_t childIdx = 0; childIdx < 8; ++childIdx)
+        /* 1. Show a simple window. Tip: if we don't call ImGui::Begin()/ImGui::End() the widgets appear in
+        a window called "Debug" automatically */
         {
-          const OctreeNode &pNode = pNodeBlock->_nodes[childIdx];
-
-          /* Non-empty node */
-          if (!pNode.isLeaf() || pNode.pointCount() > 0)
-          {
-            const Matrix4 t = _arcballCamera->viewMatrix() *
-                              Matrix4::translation(pNode.center()) *
-                              Matrix4::scaling(Vector3{pNode.halfWidth()});
-            arrayAppend(_boxInstanceData, InPlaceInit, t, 0x197f99_rgbf);
-          }
+            ImGui::Text("Auksts laiks, bet silta mana sirds.");
+            if (ImGui::Button("Demo window"))
+                showDemoWindow ^= true;
+            ImGui::Text("SIMULATION");
+            // if (ImGui::ColorEdit3("Atom color", _clearColor.data()))
+            // oldSimulation->updateColor(_clearColor);
+            ImGui::InputScalar("<NATOMS>", ImGuiDataType_U64, &atomCount);
+            ImGui::InputFloat("<RADIUS>", &atomRadius);
+            ImGui::InputFloat("<VELOCITY>", &randomVelocity);
+            if (ImGui::Button("Run Simulation"))
+                simulation->RUN(SimulationParameters{atomCount, atomRadius, randomVelocity});
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                        1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }
-      }
+
+        if (showDemoWindow)
+        {
+            ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
+            ImGui::ShowDemoWindow();
+        }
+
+        /* Update application cursor */
+        imgui.updateApplicationCursor(*this);
+
+        /* Set appropriate states. If you only draw ImGui, it is sufficient to
+           just enable blending and scissor test in the constructor. */
+        GL::Renderer::enable(GL::Renderer::Feature::Blending);
+        GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+
+        imgui.drawFrame();
+
+        GL::Renderer::disable(GL::Renderer::Feature::Blending);
+        GL::Renderer::disable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+
+        swapBuffers();
+
+        redraw();
     }
 
-    _boxInstanceBuffer.setData(_boxInstanceData, GL::BufferUsage::DynamicDraw);
-    _boxMesh.setInstanceCount(_boxInstanceData.size());
-    _boxShader.setTransformationProjectionMatrix(_projectionMatrix)
-        .draw(_boxMesh);
-  }
-
-  void RMD::viewportEvent(ViewportEvent &event)
-  {
-    GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
-    _arcballCamera->reshape(event.windowSize());
-
-    _projectionMatrix = Matrix4::perspectiveProjection(_arcballCamera->fov(),
-                                                       Vector2{event.framebufferSize()}.aspectRatio(), 0.01f, 100.0f);
-  }
-
-  void RMD::keyPressEvent(KeyEvent &event)
-  {
-    if (event.key() == KeyEvent::Key::B)
+    void RMD::viewportEvent(ViewportEvent &event)
     {
-      _drawBoundingBoxes ^= true;
+        GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
+        imgui.relayout(Vector2{event.windowSize()} / event.dpiScaling(),
+                       event.windowSize(), event.framebufferSize());
+        arcballCamera->reshape(event.windowSize(), event.framebufferSize());
     }
-    else if (event.key() == KeyEvent::Key::O)
+
+    void RMD::keyPressEvent(KeyEvent &event)
     {
-      if ((_collisionDetectionByOctree ^= true))
-        Debug{} << "Collision detection using octree";
-      else
-        Debug{} << "Collision detection using brute force";
-      /* Reset the profiler to avoid measurements of the two methods mixed
-         together */
-      if (_profiler.isEnabled())
-        _profiler.enable();
+        switch (event.key())
+        {
+        case KeyEvent::Key::B:
+            drawOctreeBounds ^= true;
+            break;
+        case KeyEvent::Key::R:
+            arcballCamera->reset();
+            break;
+        case KeyEvent::Key::Space:
+            paused ^= true;
+            break;
+        case KeyEvent::Key::Right:
+            skipFrame = true;
+            break;
+        default:
+            if (imgui.handleKeyPressEvent(event))
+            {
+                event.setAccepted();
+            }
+        }
     }
-    else if (event.key() == KeyEvent::Key::P)
+
+    void RMD::keyReleaseEvent(KeyEvent &event)
     {
-      if (_profiler.isEnabled())
-        _profiler.disable();
-      else
-        _profiler.enable();
+        if (imgui.handleKeyReleaseEvent(event))
+            return;
     }
-    else if (event.key() == KeyEvent::Key::R)
+
+    void RMD::mousePressEvent(MouseEvent &event)
     {
-      _arcballCamera->reset();
+        if (imgui.handleMousePressEvent(event))
+            return;
+
+        /* Enable mouse capture so the mouse can drag outside of the window */
+        /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
+        SDL_CaptureMouse(SDL_TRUE);
+
+        if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
+            arcballCamera->initTransformation(event.position(), 1);
+        else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
+            arcballCamera->initTransformation(event.position(), 2);
+        else
+            arcballCamera->initTransformation(event.position(), 0);
+        event.setAccepted();
     }
-    else if (event.key() == KeyEvent::Key::Space)
+
+    void RMD::mouseReleaseEvent(MouseEvent &event)
     {
-      _paused ^= true;
+        if (imgui.handleMouseReleaseEvent(event))
+            return;
+        /* Disable mouse capture again */
+        /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
+        SDL_CaptureMouse(SDL_FALSE);
     }
-    else if (event.key() == KeyEvent::Key::Right)
+
+    void RMD::mouseMoveEvent(MouseMoveEvent &event)
     {
-      _skipFrame = true;
+        if (imgui.handleMouseMoveEvent(event))
+            return;
+
+        if (!event.buttons())
+            return;
+
+        if (event.modifiers() & MouseMoveEvent::Modifier::Shift)
+            arcballCamera->translate(event.position());
+        else if (event.modifiers() & MouseMoveEvent::Modifier::Ctrl)
+            arcballCamera->rotate(event.position(), 1);
+        else if (event.modifiers() & MouseMoveEvent::Modifier::Alt)
+            arcballCamera->rotate(event.position(), 2);
+        else
+            arcballCamera->rotate(event.position(), 0);
+        event.setAccepted();
     }
-    else
-      return;
 
-    event.setAccepted();
-    redraw();
-  }
+    void RMD::mouseScrollEvent(MouseScrollEvent &event)
+    {
+        if (imgui.handleMouseScrollEvent(event))
+            return;
 
-  void RMD::mousePressEvent(MouseEvent &event)
-  {
-    /* Enable mouse capture so the mouse can drag outside of the window */
-    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
-    SDL_CaptureMouse(SDL_TRUE);
-    _arcballCamera->initTransformation(event.position());
-    event.setAccepted();
-    redraw(); /* camera has changed, redraw! */
-  }
+        const Float delta = event.offset().y();
+        if (Math::abs(delta) < 1.0e-2f)
+            return;
 
-  void RMD::mouseReleaseEvent(MouseEvent &)
-  {
-    /* Disable mouse capture again */
-    /** @todo replace once https://github.com/mosra/magnum/pull/419 is in */
-    SDL_CaptureMouse(SDL_FALSE);
-  }
+        arcballCamera->zoom(50 * delta);
 
-  void RMD::mouseMoveEvent(MouseMoveEvent &event)
-  {
-    if (!event.buttons())
-      return;
+        event.setAccepted();
+    }
 
-    if (event.modifiers() & MouseMoveEvent::Modifier::Shift)
-      _arcballCamera->translate(event.position());
-    else
-      _arcballCamera->rotate(event.position());
-
-    event.setAccepted();
-    redraw(); /* camera has changed, redraw! */
-  }
-
-  void RMD::mouseScrollEvent(MouseScrollEvent &event)
-  {
-    const Float delta = event.offset().y();
-    if (Math::abs(delta) < 1.0e-2f)
-      return;
-
-    _arcballCamera->zoom(delta);
-
-    event.setAccepted();
-    redraw(); /* camera has changed, redraw! */
-  }
+    void RMD::textInputEvent(TextInputEvent &event)
+    {
+        if (imgui.handleTextInputEvent(event))
+            event.setAccepted();
+        return;
+    }
 }
 
 MAGNUM_APPLICATION_MAIN(Magnum::RMD)

@@ -17,19 +17,22 @@ namespace Magnum
     // * Simulation constants
     const Float atomRange = 0.1;
 
-    const Int NMAXQEq = 500; // ! from rxmd.in
+    const std::size_t NMAXQEq = 500; // ! from rxmd.in
     const std::size_t NTABLE = 5000;
     const Float rctap0 = 10.0;
     const Double MINBOSIG = 1.0e-3;
     const Double cutof2_bo = 1.0e-3;
     const Double vpar30 = 0.1;
     const Double vpar1 = 50.0, vpar2 = 9.5469;
+    const Double QEq_tol = 1.0e-7;
 
     // ? Coulomb Energy (eq. 22)
-    const Double Cclmb0_qeq = 14.4; /*[ev]*/
+    const Double Cclmb0_qeq = 14.4;
+    const Double CEchrge = 23.02;
+
     Float rctap, rctap2;
     Float UDR, UDRi;
-    Containers::StaticArray<5000, Containers::Array<Double>> TBL_Eclmb_QEq;
+    Containers::StaticArray<5001, Containers::Array<Double>> TBL_Eclmb_QEq;
     Containers::StaticArray<8, Double> CTap;
     Double cutoff_vpar30;
 
@@ -41,4 +44,7 @@ namespace Magnum
 
     // ? BOPRIM
     Containers::StaticArray<3, Double> arg_BOpij;
+
+    // ? ENbond
+    Containers::StaticArray<14, Double> PE;
 }

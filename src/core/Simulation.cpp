@@ -102,7 +102,7 @@ namespace Magnum
     void Simulation::GETPARAMS()
     {
         // arrayResize(TBL_Eclmb_QEq, 4); // +1 from last inxn2
-        for (std::size_t i = 0; i < NTABLE; ++i)
+        for (std::size_t i = 0; i < NTABLE + 1; ++i)
         {
             arrayResize(TBL_Eclmb_QEq[i], nso);
         }
@@ -228,12 +228,6 @@ namespace Magnum
                 bond[inxn].pboc5 = sqrt(atom[i].bo133 * atom[j].bo133);
             }
         }
-
-        // for (std::size_t i; i < nboty; i++)
-        //{
-        //     read type a, read type b (1 1, 2 2, 1 2)
-        //     inxn2[type a][type b] = i;
-        // }
     }
 
     void Simulation::INITSYSTEM()
@@ -271,7 +265,7 @@ namespace Magnum
                 // Double gamWij = gamW[i][j];
                 inxn -= 1;
 
-                for (std::size_t k = 0; k < NTABLE; ++k)
+                for (std::size_t k = 0; k < NTABLE + 1; ++k)
                 {
                     Double dr2 = UDR * k;
                     Double dr1 = sqrt(dr2);
@@ -305,7 +299,7 @@ namespace Magnum
     void Simulation::UPDATE_ATOMS()
     {
         QEq();
-        // FORCE();
+        FORCE();
         constexpr Float dt = 1.0 / 1.2;
 
         for (std::size_t i = 0; i < NATOMS; ++i)
@@ -329,14 +323,18 @@ namespace Magnum
     {
         for (std::size_t i = 0; i < NATOMS; i++)
         {
+            // TODO should just allocate array for every atom, more memory but better performance
             atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
             arrayResize(atomData[i].hessian, 0);
+            arrayResize(atomData[i].dpq2, 0);
             arrayResize(atomData[i].neighbors, 0);
             arrayResize(atomData[i].bonds, 0);
             arrayResize(atomData[i].bo, 0);
+            arrayResize(atomData[i].BO, 0);
             arrayResize(atomData[i].dln_BOp, 0);
             arrayResize(atomData[i].dBOp, 0);
             arrayResize(atomData[i].bo_sum, 0);
+            arrayResize(atomData[i].BO_sum, 0);
             arrayResize(atomData[i].A0, 0);
             arrayResize(atomData[i].A1, 0);
             arrayResize(atomData[i].A2, 0);
@@ -406,227 +404,33 @@ namespace Magnum
             }
         }
 
+        // TODO declare variables outside loop for performance
         for (const OctreePoint *const point : node.pointList())
         {
             const std::size_t j = point->idx();
             if (j > i)
             {
-                // const Vector3d qpos = atomData[j].position;
-                //  const Vector3 qvel = _atomVelocities[j];
-                //  const Vector3 velpq = pvel - qvel;
                 const Vector3d pospq = ppos - atomData[j].position; // qpos
-                // const Float vp = Math::dot(velpq, pospq);
-                /* INFO Velocity vector, to stop attraction*/
-                // if (vp < 0.0f)
-                // const Float dpq = pospq.length();
                 const Float dpq2 = (pospq * 0.5).dot();
 
-                // TODO copyptr(6) probably uses all atoms, so rewrite everything :)
                 if (dpq2 < rctap2)
                 {
+                    arrayAppend(atomData[i].neighbors, InPlaceInit, j);
+                    arrayAppend(atomData[j].neighbors, InPlaceInit, i);
+
+                    arrayAppend(atomData[i].dpq2, InPlaceInit, dpq2);
+                    arrayAppend(atomData[j].dpq2, InPlaceInit, dpq2);
+
                     atomInstanceData[i].color = Color3(1.0f, 0.5f + atomInstanceData[i].color.y(), 1.0f);
                     atomInstanceData[j].color = Color3(1.0f, 0.5f + atomInstanceData[j].color.y(), 1.0f);
 
-                    // TODO
-                    // array with atype[atom] + inxn(atype, atype);
-                    // ity (i type), jty (j type)
-
-                    // get table value from distance
-                    std::size_t itb = Int(dpq2 * UDRi);
-                    Double drtb = dpq2 - itb * UDR;
-                    drtb = drtb * Double(UDRi);
-
-                    std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
-
-                    arrayAppend(atomData[i].hessian, InPlaceInit, (1.0 - drtb) * TBL_Eclmb_QEq[itb][inxn] + drtb * TBL_Eclmb_QEq[itb][inxn]); // TODO could be itb + 1
-                    arrayAppend(atomData[i].neighbors, InPlaceInit, j);
-
-                    arrayAppend(atomData[j].hessian, InPlaceInit, (1.0 - drtb) * TBL_Eclmb_QEq[itb][inxn] + drtb * TBL_Eclmb_QEq[itb][inxn]);
-                    arrayAppend(atomData[j].neighbors, InPlaceInit, i);
-
-                    //? BOPRIM
-                    atomData[i].deltap[0] = -atom[atomData[i].type].Val;
-                    atomData[j].deltap[0] = -atom[atomData[j].type].Val;
-
-                    Vector3d _bo, _dln_BOp;
-                    Double _bo_sum;
-
+                    const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
                     if (dpq2 < Float(bond[inxn].rc2))
                     {
                         arrayAppend(atomData[i].bonds, InPlaceInit, j);
                         arrayAppend(atomData[j].bonds, InPlaceInit, i);
-
-                        arg_BOpij[0] = bond[inxn].cBOp1 * pow(Double(dpq2), bond[inxn].pbo2h);
-                        arg_BOpij[1] = bond[inxn].cBOp3 * pow(Double(dpq2), bond[inxn].pbo4h);
-                        arg_BOpij[2] = bond[inxn].cBOp5 * pow(Double(dpq2), bond[inxn].pbo6h);
-
-                        for (std::size_t k = 0; k < 3; ++k)
-                        {
-                            _bo[k] = bond[inxn].swh[k] * exp(arg_BOpij[k]);
-                        }
-
-                        // Small modification exists in sigma-bond prime, see reac.f line 4444. sigma-bond prime is multiplied by
-                        // (1.d0 + 1.d-4) here.  Later in original reaxff code, sigma-bond prime is subtracted by
-                        // 0.01*vpar30 resulting in the following subtractions in abo(i1), bo(nbon), bos(nbon), bosi(nbon).
-                        // However, this modification is only applied to the energy calculation, not to the force calculation.
-                        // The subtraction by <cutoff_vpar30> is done after the derivative calculations so that the variables in the
-                        // force-calc routines use the original BOp values and the ones in the energy-calc routines are the modified value.
-
-                        _bo[0] *= (1.0 + cutoff_vpar30);
-
-                        // If the total <BOp> before the subtraction is greater than <cutoff_vpar30>,
-                        // get "final" <BOp> value and its derivatives.
-
-                        if (_bo.sum() > cutoff_vpar30)
-                        {
-                            _dln_BOp[0] = bond[inxn].swh[0] * bond[inxn].pbo2 * arg_BOpij[0];
-                            _dln_BOp[1] = bond[inxn].swh[1] * bond[inxn].pbo4 * arg_BOpij[1];
-                            _dln_BOp[2] = bond[inxn].swh[2] * bond[inxn].pbo6 * arg_BOpij[2];
-                            _dln_BOp = _dln_BOp / dpq2;
-
-                            arrayAppend(atomData[i].dln_BOp, InPlaceInit, _dln_BOp);
-                            arrayAppend(atomData[j].dln_BOp, InPlaceInit, _dln_BOp);
-
-                            // After the derivative calculations are done, do the subtraction described above
-                            // which results in the difference of bond-order  between the energy-calc and the force-calc.
-
-                            _bo[0] -= cutoff_vpar30;
-                            _bo_sum = _bo.sum();
-                            arrayAppend(atomData[i].bo_sum, InPlaceInit, _bo_sum);
-                            arrayAppend(atomData[j].bo_sum, InPlaceInit, _bo_sum);
-                            arrayAppend(atomData[i].bo, InPlaceInit, _bo);
-                            arrayAppend(atomData[j].bo, InPlaceInit, _bo);
-
-                            atomData[i].deltap[0] += _bo_sum;
-                            atomData[j].deltap[0] += _bo_sum;
-                        }
-                        else
-                        {
-                            arrayAppend(atomData[i].dBOp, InPlaceInit, 0.0);
-                            arrayAppend(atomData[j].dBOp, InPlaceInit, 0.0);
-                            arrayAppend(atomData[i].bo_sum, InPlaceInit, 0.0);
-                            arrayAppend(atomData[j].bo_sum, InPlaceInit, 0.0);
-                        }
                     }
-
-                    //? BOFULL
-                    atomData[i].deltap[1] = atomData[i].deltap[0] + atom[atomData[i].type].Val - atom[atomData[i].type].Valval;
-                    atomData[j].deltap[1] = atomData[j].deltap[0] + atom[atomData[j].type].Val - atom[atomData[j].type].Valval;
-
-                    Double exppboc1i = exp(-vpar1 * atomData[i].deltap[0]);
-                    Double exppboc2i = exp(-vpar2 * atomData[i].deltap[0]);
-                    Double exppboc1j = exp(-vpar1 * atomData[j].deltap[0]);
-                    Double exppboc2j = exp(-vpar2 * atomData[j].deltap[0]);
-
-                    Double fn2 = exppboc1i + exppboc1j;
-                    Double fn3 = (-1.0 / vpar2) * log(0.5 * (exppboc2i + exppboc2j));
-
-                    Double fn23 = fn2 + fn3;
-                    // TODO Double BOp0 = atomData[i].bo_sum[some index idk];
-                    Double BOp0 = 1.0;
-
-                    Double fn1 = 0.5 * ((atom[atomData[i].type].Val + fn2) / (atom[atomData[i].type].Val + fn23) + (atom[atomData[j].type].Val + fn2) / (atom[atomData[j].type].Val + fn23));
-
-                    // TODO ovc is either 1 or 0, so this doesn't make any sense. Probably some scaling i have missed;
-                    if (bond[inxn].ovc < 1.0e-3)
-                        fn1 = 1.0;
-
-                    Double BOpsqr = BOp0 * BOp0;
-                    Double fn4 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[i].deltap[1])) + bond[inxn].pboc5);
-                    Double fn5 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[j].deltap[1])) + bond[inxn].pboc5);
-
-                    if (bond[inxn].v13cor < 1.0e-3)
-                    {
-                        fn4 = 1.0;
-                        fn5 = 1.0;
-                    }
-
-                    Double fn45 = fn4 * fn5;
-                    Double fn145 = fn1 * fn45;
-                    Double fn1145 = fn1 * fn145;
-
-                    // New bond order definition
-                    Vector3d _BO;
-                    Double _BO_sum;
-                    _BO_sum = _bo_sum * fn145;
-                    _BO[1] = _bo[1] * fn1145;
-                    _BO[2] = _bo[2] * fn1145;
-                    if (_BO_sum < 1.0e-10)
-                        _BO_sum = 0.0;
-                    if (_BO[1] < 1.0e-10)
-                        _BO[1] = 0.0;
-                    if (_BO[2] < 1.0e-10)
-                        _BO[2] = 0.0;
-
-                    // new sigma BO definition
-                    _BO[0] = _bo[0] - _BO[1] - _BO[2];
-                    // TODO assign BO to atom;
-                    // _BO(i) = _BO(j)
-
-                    // CALCULATION OF DERIVATIVE OF BOND ORDER
-                    // all following comes from Coding Methodology section:
-                    // part 1:
-
-                    Double u1ij = atom[atomData[i].type].Val + fn23;
-                    Double u1ji = atom[atomData[j].type].Val + fn23;
-
-                    // part 2:
-                    Double u1ij_inv2 = 1.0 / (u1ij * u1ij);
-                    Double u1ji_inv2 = 1.0 / (u1ji * u1ji);
-
-                    Double Cf1Aij = 0.5 * fn3 * (u1ij_inv2 + u1ji_inv2);
-                    Double Cf1Bij = -0.5 * ((u1ij - fn3) * u1ij_inv2 + (u1ji - fn3) * u1ji_inv2);
-
-                    // part 3:
-                    Double exp_delt22 = exppboc2i + exppboc2j;
-                    Double Cf1ij = (-Cf1Aij * bond[inxn].pboc1 * exppboc1i) + (Cf1Bij * exppboc2i) / (exp_delt22);
-                    Double Cf1ji = (-Cf1Aij * bond[inxn].pboc1 * exppboc1j) + (Cf1Bij * exppboc2j) / (exp_delt22);
-
-                    // part 4:
-                    Double pboc34 = bond[inxn].pboc3 * bond[inxn].pboc4;
-                    Double BOpij_2 = BOpsqr;
-
-                    Double u45ij = bond[inxn].pboc5 + bond[inxn].pboc3 * atomData[i].deltap[1] - pboc34 * BOpij_2;
-                    Double u45ji = bond[inxn].pboc5 + bond[inxn].pboc3 * atomData[j].deltap[1] - pboc34 * BOpij_2;
-
-                    // part 5:
-                    Double exph_45ij = exp(u45ij);
-                    Double exph_45ji = exp(u45ji);
-                    Double exp1 = 1.0 / (1.0 + exph_45ij);
-                    Double exp2 = 1.0 / (1.0 + exph_45ji);
-                    Double exp12 = exp1 * exp2;
-
-                    Double Cf45ij = -exph_45ij * exp12 * exp1;
-                    Double Cf45ji = -exph_45ji * exp12 * exp2;
-
-                    if (bond[inxn].ovc < 1.0e-3)
-                    {
-                        Cf1ij = 0.0;
-                        Cf1ji = 0.0;
-                    }
-                    if (bond[inxn].v13cor < 1.0e-3)
-                    {
-                        Cf45ij = 0.0;
-                        Cf45ji = 0.0;
-                    }
-
-                    // part 6:
-                    Double fn45_inv = 1.0 / fn45;
-                    Double Cf1ij_div1 = Cf1ij / fn1;
-                    Double Cf1ji_div1 = Cf1ji / fn1;
-
-                    arrayAppend(atomData[i].A0, InPlaceInit, fn145);
-                    arrayAppend(atomData[i].A1, InPlaceInit, -2.0 * pboc34 * BOp0 * (Cf45ij + Cf45ji) * fn45_inv);
-                    arrayAppend(atomData[i].A2, InPlaceInit, Cf1ij_div1 + (bond[inxn].pboc3 * Cf45ij * fn45_inv));
-                    arrayAppend(atomData[i].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ij_div1);
-
-                    arrayAppend(atomData[j].A0, InPlaceInit, atomData[i].A0[atomData[i].A0.size() - 1]);
-                    arrayAppend(atomData[j].A1, InPlaceInit, atomData[i].A1[atomData[i].A1.size() - 1]);
-                    arrayAppend(atomData[j].A2, InPlaceInit, Cf1ji_div1 + (bond[inxn].pboc3 * Cf45ji * fn45_inv));
-                    arrayAppend(atomData[j].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ji_div1);
                 }
-
-                // atomData[i].delta = -atom[atomData[i].type].Val + sum(all BO?) tired... sleep....
             }
         }
     }
