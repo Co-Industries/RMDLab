@@ -69,7 +69,10 @@
     "typeinfo": "cpp",
     "valarray": "cpp",
     "variant": "cpp",
-    "version": "cpp"
+    "version": "cpp",
+    "condition_variable": "cpp",
+    "mutex": "cpp",
+    "shared_mutex": "cpp"
   },
   "C_Cpp.errorSquiggles": "disabled",
   "C_Cpp.default.compilerPath": "C:\\msys64\\mingw64\\bin\\g++.exe",

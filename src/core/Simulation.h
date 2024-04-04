@@ -62,6 +62,8 @@ namespace Magnum
         void UPDATE_ATOMS();
         void UPDATE_OCTREE();
         void RUN(const SimulationParameters &parameters);
+        
+        bool running = false;
 
     private:
         void octreeCollisionDetection();
@@ -84,6 +86,7 @@ namespace Magnum
         GL::Buffer octreeInstanceBuffer;
         Shaders::FlatGL3D octreeShader;
         GL::Mesh octreeMesh;
+        
     };
 }
 

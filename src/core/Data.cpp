@@ -25,14 +25,19 @@ namespace Magnum
     const Double vpar30 = 0.1;
     const Double vpar1 = 50.0, vpar2 = 9.5469;
     const Double QEq_tol = 1.0e-7;
+    const Double pvdW1 = 1.5591;
+    Double pvdW1h, pvdW1inv;
 
     // ? Coulomb Energy (eq. 22)
     const Double Cclmb0_qeq = 14.4;
+    const Double Cclmb0 = 332.0638;
     const Double CEchrge = 23.02;
 
     Float rctap, rctap2;
     Float UDR, UDRi;
     Containers::StaticArray<5001, Containers::Array<Double>> TBL_Eclmb_QEq;
+    Containers::StaticArray<5001, Containers::Array<Double>> TBL_Evdw_p, TBL_Eclmb_p;
+    Containers::StaticArray<5001, Containers::Array<Double>> TBL_Evdw_d, TBL_Eclmb_d;
     Containers::StaticArray<8, Double> CTap;
     Double cutoff_vpar30;
 

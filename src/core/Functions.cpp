@@ -66,10 +66,10 @@ namespace Magnum
                 if (j < i)
                     break;
 
-                const std::size_t itb = Int(atomData[i].dpq2[n] * UDRi);
+                const std::size_t itb = Int(atomData[i].dpq2[n] * Double(UDRi));
 
                 const std::size_t itb1 = itb + 1;
-                Double drtb = atomData[i].dpq2[n] - itb * UDR;
+                Double drtb = atomData[i].dpq2[n] - itb * Double(UDR);
 
                 drtb = drtb * Double(UDRi);
 
@@ -245,14 +245,19 @@ namespace Magnum
 
                     // If the total <BOp> before the subtraction is greater than <cutoff_vpar30>,
                     // get "final" <BOp> value and its derivatives.
+
                     if (_bo.sum() > cutoff_vpar30)
                     {
                         _dln_BOp[0] = bond[inxn].swh[0] * bond[inxn].pbo2 * arg_BOpij[0];
                         _dln_BOp[1] = bond[inxn].swh[1] * bond[inxn].pbo4 * arg_BOpij[1];
                         _dln_BOp[2] = bond[inxn].swh[2] * bond[inxn].pbo6 * arg_BOpij[2];
                         _dln_BOp = _dln_BOp / dpq2;
-                        // arrayAppend(atomData[i].dln_BOp, InPlaceInit, _dln_BOp);
-                        // arrayAppend(atomData[j].dln_BOp, InPlaceInit, _dln_BOp);
+                        arrayAppend(atomData[i].dln_BOp, InPlaceInit, _dln_BOp);
+                        arrayAppend(atomData[j].dln_BOp, InPlaceInit, _dln_BOp);
+
+                        Double dBOp = Vector3d(_bo * _dln_BOp).sum();
+                        arrayAppend(atomData[i].dBOp, InPlaceInit, dBOp);
+                        arrayAppend(atomData[j].dBOp, InPlaceInit, dBOp);
                         // After the derivative calculations are done, do the subtraction described above
                         // which results in the difference of bond-order  between the energy-calc and the force-calc.
                         _bo[0] -= cutoff_vpar30;
@@ -266,8 +271,10 @@ namespace Magnum
                     }
                     else
                     {
-                        // arrayAppend(atomData[i].dBOp, InPlaceInit, 0.0);
-                        // arrayAppend(atomData[j].dBOp, InPlaceInit, 0.0);
+                        arrayAppend(atomData[i].dln_BOp, InPlaceInit, Vector3d{0.0});
+                        arrayAppend(atomData[j].dln_BOp, InPlaceInit, Vector3d{0.0});
+                        arrayAppend(atomData[i].dBOp, InPlaceInit, 0.0);
+                        arrayAppend(atomData[j].dBOp, InPlaceInit, 0.0);
                         arrayAppend(atomData[i].bo, InPlaceInit, Vector3d{0.0});
                         arrayAppend(atomData[i].bo, InPlaceInit, Vector3d{0.0});
                         arrayAppend(atomData[i].bo_sum, InPlaceInit, 0.0);
@@ -407,15 +414,15 @@ namespace Magnum
                     const Double Cf1ij_div1 = Cf1ij / fn1;
                     const Double Cf1ji_div1 = Cf1ji / fn1;
 
-                    // arrayAppend(atomData[i].A0, InPlaceInit, fn145);
-                    // arrayAppend(atomData[i].A1, InPlaceInit, -2.0 * pboc34 * BOp0 * (Cf45ij + Cf45ji) * fn45_inv);
-                    // arrayAppend(atomData[i].A2, InPlaceInit, Cf1ij_div1 + (bond[inxn].pboc3 * Cf45ij * fn45_inv));
-                    // arrayAppend(atomData[i].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ij_div1);
+                    arrayAppend(atomData[i].A0, InPlaceInit, fn145);
+                    arrayAppend(atomData[i].A1, InPlaceInit, -2.0 * pboc34 * BOp0 * (Cf45ij + Cf45ji) * fn45_inv);
+                    arrayAppend(atomData[i].A2, InPlaceInit, Cf1ij_div1 + (bond[inxn].pboc3 * Cf45ij * fn45_inv));
+                    arrayAppend(atomData[i].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ij_div1);
 
-                    // arrayAppend(atomData[j].A0, InPlaceInit, atomData[i].A0[atomData[i].A0.size() - 1]);
-                    // arrayAppend(atomData[j].A1, InPlaceInit, atomData[i].A1[atomData[i].A1.size() - 1]);
-                    // arrayAppend(atomData[j].A2, InPlaceInit, Cf1ji_div1 + (bond[inxn].pboc3 * Cf45ji * fn45_inv));
-                    // arrayAppend(atomData[j].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ji_div1);
+                    arrayAppend(atomData[j].A0, InPlaceInit, atomData[i].A0[atomData[i].A0.size() - 1]);
+                    arrayAppend(atomData[j].A1, InPlaceInit, atomData[i].A1[atomData[i].A1.size() - 1]);
+                    arrayAppend(atomData[j].A2, InPlaceInit, Cf1ji_div1 + (bond[inxn].pboc3 * Cf45ji * fn45_inv));
+                    arrayAppend(atomData[j].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ji_div1);
                 }
             }
         }
@@ -443,13 +450,111 @@ namespace Magnum
                 if (j < i)
                     break;
 
-                const std::size_t itb = Int(atomData[i].dpq2[n] * UDRi);
+                const std::size_t itb = Int(atomData[i].dpq2[n] * Double(UDRi));
                 const std::size_t itb1 = itb + 1;
-                Double drtb = atomData[i].dpq2[n] - itb * UDR;
+                Double drtb = atomData[i].dpq2[n] - itb * Double(UDR);
                 drtb = drtb * Double(UDRi);
 
                 const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
+
+                // van der Waals: TBL_Evdw[0] = TBL_Evdw_p ; TBL_Evdw[1] = TBL_Evdw_d
+                const Double PEvdw = (1.0 - drtb) * TBL_Evdw_p[itb][inxn] + drtb * TBL_Evdw_p[itb1][inxn];
+                const Double CEvdw = (1.0 - drtb) * TBL_Evdw_d[itb][inxn] + drtb * TBL_Evdw_d[itb1][inxn];
+
+                // Coulomb:
+                const Double qij = atomData[i].q * atomData[j].q;
+                Double PEclmb = (1.0 - drtb) * TBL_Eclmb_p[itb][inxn] + drtb * TBL_Eclmb_p[itb1][inxn];
+                PEclmb *= qij;
+                Double CEclmb = (1.0 - drtb) * TBL_Eclmb_d[itb][inxn] + drtb * TBL_Eclmb_d[itb1][inxn];
+                CEclmb *= qij;
+
+                PE[11] = PE[11] + PEvdw;
+                PE[12] = PE[12] + PEclmb;
+
+                Vector3d dr = atomData[i].position - atomData[j].position;
+                Vector3d ff = (CEvdw + CEclmb) * dr;
+
+                atomData[i].force = atomData[i].force - ff;
+                atomData[j].force = atomData[j].force + ff;
             }
+        }
+    }
+
+    void ForceBbo(const std::size_t &i, const std::size_t &j, const std::size_t &b, const Vector3d &coeff)
+    {
+        // * With the new bond-order definition, 1st term is the derivative of "full"-bond order,
+        // * 2nd is for pi-bond order and 3rd is for pipi-bond order.
+        Vector3d cf = Vector3d(coeff[0], coeff[1] - coeff[0], coeff[2] - coeff[0]);
+        Vector3d Cbond;
+        Cbond[0] = cf[0] * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]) * atomData[i].dBOp[b] +
+                   cf[1] * atomData[i].BO[b][1] * (atomData[i].dln_BOp[b][1] + atomData[i].A1[b] * atomData[i].dBOp[b]) +
+                   cf[2] * atomData[i].BO[b][2] * (atomData[i].dln_BOp[b][2] + atomData[i].A1[b] * atomData[i].dBOp[b]);
+        
+        Vector3d dr = atomData[i].position - atomData[j].position;
+        Vector3d ff = Cbond[0] * dr;
+
+        atomData[i].force = atomData[i].force - ff;
+        atomData[j].force = atomData[j].force + ff;
+
+        // * 1st element is "full"-bond order.
+        Vector3d cBO = Vector3d(cf[0] * atomData[i].BO_sum[b], cf[1] * atomData[i].BO[b][1], cf[2] * atomData[i].BO[b][2]);
+
+        Cbond[1] = cBO[0] * atomData[i].A2[b] + (cBO[1] + cBO[2]) * atomData[i].A3[b];
+        
+        for (std::size_t bj = 0; bj < atomData[j].bonds.size(); ++bj)
+        {
+            if (atomData[j].bonds[bj] != i)
+                continue;
+            
+            Cbond[2] = cBO[0] * atomData[j].A2[bj] + (cBO[1] + cBO[2]) * atomData[j].A3[bj];
+        }
+
+        atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
+        atomData[j].ccbnd = atomData[j].ccbnd + Cbond[2];
+    }
+
+    void Ebond()
+    {
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            for (std::size_t n = 0; n < atomData[i].neighbors.size(); ++n)
+            {
+                const std::size_t j = atomData[i].neighbors[n];
+
+                if (j < i)
+                    break;
+
+                const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
+                for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+                {
+                    if (atomData[i].bonds[b] != j)
+                        continue;
+                    // TODO might be wrong... maybe (probably only calculate bond order for nearest neighbor)
+
+                    const Double exp_be12 = exp(bond[inxn].pbe1 * (1.0 - pow(atomData[i].BO[b][0], bond[inxn].pbe2)));
+                    const Double PEbo = -bond[inxn].Desig * atomData[i].BO[b][0] * exp_be12 - bond[inxn].Depi * atomData[i].BO[b][1] - bond[inxn].Depipi * atomData[i].BO[b][2];
+
+                    PE[1] = PE[1] + PEbo;
+
+                    const Double CEbo = -bond[inxn].Desig * exp_be12 * (1.0 - bond[inxn].pbe1 * bond[inxn].pbe2 * pow(atomData[i].BO[b][0], bond[inxn].pbe2));
+                    Vector3d coeff = Vector3d(CEbo, -bond[inxn].Depi, -bond[inxn].Depipi);
+
+                    ForceBbo(i, j, b, coeff);
+                }
+            }
+        }
+    }
+
+    void Elnpr()
+    {
+        // TODO proper way of writing these functions here
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            std::size_t _type = atomData[i].type;
+
+            if (_type == 0)
+                continue;
+            
         }
     }
 
@@ -460,5 +565,7 @@ namespace Magnum
         // calculate full BO
         BOFULL();
         ENbond();
+        Ebond();
+        Elnpr();
     }
 }

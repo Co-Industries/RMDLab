@@ -4,3 +4,4 @@ build*/
 .vscode
 SDL2-2.0.10
 magnum-integration/src/MagnumExternal
+imgui.ini

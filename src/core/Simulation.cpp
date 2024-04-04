@@ -61,6 +61,7 @@ namespace Magnum
         randomVelocity = parameters.randomVelocity;
 
         Debug{} << "Simulation running" << NATOMS;
+        running = true;
         arrayResize(atomInstanceData, NATOMS);
         arrayResize(atomData, NATOMS);
         arrayResize(atomFloatPositions, NATOMS);
@@ -75,14 +76,14 @@ namespace Magnum
             const std::size_t tempType = std::rand() / ((RAND_MAX + 1u) / 2); // 0 or 1
 
             atomData[i].position = tempPosition * 200.0 - Vector3d(100.0);
-            atomData[i].position.y() *= 0.5;
+            //atomData[i].position.y() *= 0.5;
             atomData[i].velocity = (tempVelocity * 200.0 - Vector3d{100.0}).resized(randomVelocity);
             atomData[i].type = tempType;
             atomFloatPositions[i] = Vector3(atomData[i].position);
 
             atomInstanceData[i].transformationMatrix = Matrix4::translation(atomFloatPositions[i]) * Matrix4::scaling(Vector3{atomRadius});
             atomInstanceData[i].normalMatrix = atomInstanceData[i].transformationMatrix.normalMatrix();
-            atomInstanceData[i].color = Color3(1.0f, 0.0f, 0.0f);
+            atomInstanceData[i].color = atom[atomData[i].type].color;
         }
 
         atomMesh.setInstanceCount(atomInstanceData.size());
@@ -91,12 +92,11 @@ namespace Magnum
         Debug{} << " [Octree] Allocated nodes:" << octree->numAllocatedNodes();
         Debug{} << " [Octree] Max number of points per node:" << octree->maxNumPointInNodes();
 
-        // QeQ
-        // arrayResize(qsfp, NATOMS);
-        // arrayResize(qsfv, NATOMS);
-        // arrayResize(q, NATOMS); //! Should initialize per atom
+        UPDATE_OCTREE();
 
-        // Atomtype (should be given)
+        QEq();
+        FORCE();
+        
     }
 
     void Simulation::GETPARAMS()
@@ -105,6 +105,10 @@ namespace Magnum
         for (std::size_t i = 0; i < NTABLE + 1; ++i)
         {
             arrayResize(TBL_Eclmb_QEq[i], nso);
+            arrayResize(TBL_Eclmb_p[i], nso);
+            arrayResize(TBL_Eclmb_d[i], nso);
+            arrayResize(TBL_Evdw_p[i], nso);
+            arrayResize(TBL_Evdw_d[i], nso);
         }
         for (std::size_t i = 0; i < nso; ++i)
         {
@@ -114,6 +118,9 @@ namespace Magnum
             arrayResize(atom[i].r0s, nso);
             arrayResize(atom[i].r0p, nso);
             arrayResize(atom[i].r0pp, nso);
+            arrayResize(atom[i].Dij, nso);
+            arrayResize(atom[i].alpij, nso);
+            arrayResize(atom[i].rvdW, nso);
         }
 
         atom[0].inxn2[0] = 1;
@@ -123,6 +130,7 @@ namespace Magnum
 
         // atom
         Containers::StaticArray<3, std::string> _name{"H", "O", "X"};
+        Containers::StaticArray<3, Color3> _color{Color3::fromSrgbInt(0xffffff), Color3::fromSrgbInt(0xff0d0d), Color3::fromSrgbInt(0x000000)};
         Containers::StaticArray<3, Double> _vop{33.2894, 11.7301, 2.5};
         Containers::StaticArray<3, Double> _gam{0.82, 1.095, 1.0};
         Containers::StaticArray<3, Double> _eta{9.6093, 1.0548, -0.1};
@@ -135,21 +143,30 @@ namespace Magnum
         Containers::StaticArray<3, Double> _bo131{3.0408, 3.5357, 8.741};
         Containers::StaticArray<3, Double> _bo132{2.4197, 0.6653, 13.364};
         Containers::StaticArray<3, Double> _bo133{0.0003, 0.0021, 0.669};
+        Containers::StaticArray<3, Double> _eps{0.093, 0.1038, 0.0};
+        Containers::StaticArray<3, Double> _alf{8.218, 9.7942, 10.0};
+        Containers::StaticArray<3, Double> _rvdw1{1.355, 2.3808, 2.0};
 
         // bond
         Containers::StaticArray<3, Double> _pbo1{-0.079, -0.1225, -0.0924};
-        Containers::StaticArray<3, Double> _pbo2{6.0552, 5.50000, 4.27780};
-        Containers::StaticArray<3, Double> _pbo3{1.0000, -0.1055, 1.00000};
-        Containers::StaticArray<3, Double> _pbo4{0.0000, 9.00000, 0.00000};
-        Containers::StaticArray<3, Double> _pbo5{1.0000, 1.00000, 1.00000};
-        Containers::StaticArray<3, Double> _pbo6{6.0000, 29.7503, 6.00000};
-        Containers::StaticArray<3, Double> _ovc{0.00000, 1.00000, 0.00000};
-        Containers::StaticArray<3, Double> _v13cor{1.0000, 1.0000, 1.0000};
+        Containers::StaticArray<3, Double> _pbo2{6.0552, 5.5, 4.2778};
+        Containers::StaticArray<3, Double> _pbo3{1.0, -0.1055, 1.0};
+        Containers::StaticArray<3, Double> _pbo4{0.0, 9.0, 0.0};
+        Containers::StaticArray<3, Double> _pbo5{1.0, 1.0, 1.0};
+        Containers::StaticArray<3, Double> _pbo6{6.0, 29.7503, 6.0};
+        Containers::StaticArray<3, Double> _ovc{0.0, 1.0, 0.0};
+        Containers::StaticArray<3, Double> _v13cor{1.0, 1.0, 1.0};
+        Containers::StaticArray<3, Double> _pbe1{-0.46, 0.2506, -0.577};
+        Containers::StaticArray<3, Double> _pbe2{6.25, 0.3451, 1.1413};
+        Containers::StaticArray<3, Double> _Desig{153.3934, 142.2858, 167.2086};
+        Containers::StaticArray<3, Double> _Depi{0.0, 145.0, 0.0};
+        Containers::StaticArray<3, Double> _Depipi{0.0, 50.8293, 0.0};
 
         // ? change atom type values
         for (std::size_t i = 0; i < nso; ++i)
         {
             atom[i].name = _name[i];
+            atom[i].color = _color[i];
             atom[i].vop = _vop[i];
             atom[i].gam = _gam[i];
             atom[i].eta = _eta[i];
@@ -162,6 +179,9 @@ namespace Magnum
             atom[i].bo131 = _bo131[i];
             atom[i].bo132 = _bo132[i];
             atom[i].bo133 = _bo133[i];
+            atom[i].eps = _eps[i];
+            atom[i].alf = _alf[i];
+            atom[i].rvdw1 = _rvdw1[i];
         }
 
         for (std::size_t i = 0; i < nboty; ++i)
@@ -174,6 +194,11 @@ namespace Magnum
             bond[i].pbo6 = _pbo6[i];
             bond[i].ovc = _ovc[i];
             bond[i].v13cor = _v13cor[i];
+            bond[i].pbe1 = _pbe1[i];
+            bond[i].pbe2 = _pbe2[i];
+            bond[i].Desig = _Desig[i];
+            bond[i].Depi = _Depi[i];
+            bond[i].Depipi = _Depipi[i];
         }
 
         for (std::size_t i = 0; i < nso; ++i)
@@ -186,6 +211,9 @@ namespace Magnum
                 atom[i].r0pp[j] = 0.5 * (atom[i].vnq + atom[j].vnq);
 
                 // Terms used in van der Waals calc:
+                atom[i].rvdW[j] = sqrt(4.0 * atom[i].rvdw1 * atom[j].rvdw1);
+                atom[i].Dij[j] = sqrt(atom[i].eps * atom[j].eps);
+                atom[i].alpij[j] = sqrt(atom[i].alf * atom[j].alf);
                 atom[i].gamW[j] = sqrt(atom[i].vop * atom[j].vop);
                 atom[i].gamij[j] = pow((atom[i].gam * atom[j].gam), -1.5);
 
@@ -232,6 +260,8 @@ namespace Magnum
 
     void Simulation::INITSYSTEM()
     {
+        // TODO declare variables outside loop for performance (not that important since this runs only once)
+
         // ? CUTOFFLENGTH()
         cutoff_vpar30 = cutof2_bo * vpar30;
 
@@ -254,16 +284,27 @@ namespace Magnum
         UDRi = 1.0f / UDR;
         Debug{} << "UDR:" << UDR << UDRi;
 
+        // van der Waals
+        pvdW1h = 0.5 * pvdW1;
+        pvdW1inv = 1.0 / pvdW1;
+
         for (std::size_t i = 0; i < nso; ++i)
         {
             for (std::size_t j = 0; j < nso; ++j)
             {
                 std::size_t inxn = atom[i].inxn2[j];
-                // inxn2 doesnt use 0, thats the "null" value, any table using it should have +1 value
+                // * inxn2 doesnt use 0, thats the "null" value, any table using it should have +1 value
                 if (inxn == 0)
                     continue;
-                // Double gamWij = gamW[i][j];
                 inxn -= 1;
+
+                const Double gamWij = atom[i].gamW[j];
+                const Double gamij = atom[i].gamij[j];
+                const Double Dij0 = atom[i].Dij[j];
+                const Double alphaij = atom[i].alpij[j];
+                const Double rvdW0 = atom[i].rvdW[j];
+
+                const Double gamwinvp = pow(1.0 / gamWij, pvdW1);
 
                 for (std::size_t k = 0; k < NTABLE + 1; ++k)
                 {
@@ -277,9 +318,26 @@ namespace Magnum
                     Double dr7 = dr1 * dr2 * dr2 * dr2;
 
                     Double Tap = CTap[7] * dr7 + CTap[6] * dr6 + CTap[5] * dr5 + CTap[4] * dr4 + CTap[0];
-                    Double dr3gamij = pow((dr3 + atom[i].gamij[j]), -1.0 / 3.0);
 
+                    Double rij_vd1 = pow(dr2, pvdW1h);
+                    Double fn13 = pow(rij_vd1 + gamwinvp, pvdW1inv);
+                    Double exp1 = exp(alphaij * (1.0 - fn13 / rvdW0));
+                    Double exp2 = sqrt(exp1);
+
+                    Double dr3gamij = pow(dr3 + gamij, -1.0 / 3.0);
+
+                    TBL_Evdw_p[k][inxn] = Tap * Dij0 * (exp1 - 2.0 * exp2);
+                    TBL_Eclmb_p[k][inxn] = Tap * Cclmb0 * dr3gamij;
                     TBL_Eclmb_QEq[k][inxn] = Tap * Cclmb0_qeq * dr3gamij;
+                    
+                    //Force calculation:
+                    Double dTap = 7.0 * CTap[7] * dr5 + 6.0 * CTap[6] * dr4 + 5.0 * CTap[5] * dr3 + 4.0 * CTap[4] * dr2;
+                    Double dfn13 = pow(rij_vd1 + gamwinvp, pvdW1inv - 1.0) * pow(dr2, pvdW1h - 1.0);
+
+                    TBL_Evdw_d[k][inxn] = Dij0 * (dTap * (exp1 - 2.0 * exp2) - Tap * (alphaij / rvdW0) * (exp1 - exp2) * dfn13);
+                    TBL_Eclmb_d[k][inxn] = Cclmb0 * dr3gamij * (dTap - pow(dr3gamij, 3) * Tap * dr1);
+
+                    //TODO if(isLG) then
                 }
 
                 // ? CUTOFFLENGTH()
@@ -324,7 +382,7 @@ namespace Magnum
         for (std::size_t i = 0; i < NATOMS; i++)
         {
             // TODO should just allocate array for every atom, more memory but better performance
-            atomInstanceData[i].color = Color3(1.0, 0.0, 0.0);
+            atomInstanceData[i].color = atom[atomData[i].type].color;
             arrayResize(atomData[i].hessian, 0);
             arrayResize(atomData[i].dpq2, 0);
             arrayResize(atomData[i].neighbors, 0);
@@ -421,8 +479,8 @@ namespace Magnum
                     arrayAppend(atomData[i].dpq2, InPlaceInit, dpq2);
                     arrayAppend(atomData[j].dpq2, InPlaceInit, dpq2);
 
-                    atomInstanceData[i].color = Color3(1.0f, 0.5f + atomInstanceData[i].color.y(), 1.0f);
-                    atomInstanceData[j].color = Color3(1.0f, 0.5f + atomInstanceData[j].color.y(), 1.0f);
+                    atomInstanceData[i].color.g() = atomInstanceData[i].color.g() + 0.4f;
+                    atomInstanceData[j].color.g() = atomInstanceData[j].color.g() + 0.4f;
 
                     const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
                     if (dpq2 < Float(bond[inxn].rc2))

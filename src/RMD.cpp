@@ -63,7 +63,7 @@ namespace Magnum
 
         Containers::Optional<ArcBallCamera> arcballCamera;
 
-        bool paused = false;
+        bool paused = true;
         bool skipFrame = false;
     };
     RMD::RMD(const Arguments &arguments) : Platform::Application{arguments, NoCreate}
@@ -154,7 +154,10 @@ namespace Magnum
             ImGui::InputFloat("<RADIUS>", &atomRadius);
             ImGui::InputFloat("<VELOCITY>", &randomVelocity);
             if (ImGui::Button("Run Simulation"))
+            {    
                 simulation->RUN(SimulationParameters{atomCount, atomRadius, randomVelocity});
+                paused = false;
+            }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                         1000.0 / Double(ImGui::GetIO().Framerate), Double(ImGui::GetIO().Framerate));
         }
@@ -206,10 +209,12 @@ namespace Magnum
             arcballCamera->reset();
             break;
         case KeyEvent::Key::Space:
-            paused ^= true;
+            if (simulation->running)
+                paused ^= true;
             break;
         case KeyEvent::Key::Right:
-            skipFrame = true;
+            if (simulation->running)
+                skipFrame = true;
             break;
         default:
             if (imgui.handleKeyPressEvent(event))

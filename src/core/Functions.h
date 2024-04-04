@@ -16,6 +16,9 @@ namespace Magnum
     // ? FORCE pot.F90
     void FORCE();
     void ENbond(); /* Calculates the energy and the forces due to the Van der Waals and Coulomb terms */
+    void Ebond();
+    void ForceBbo(const std::size_t &i, const std::size_t &j, const std::size_t &b, const Vector3d &coeff);
+    void Elnpr();
 
     // ? bo.F90
     void BOCALC();
