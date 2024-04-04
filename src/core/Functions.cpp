@@ -547,14 +547,159 @@ namespace Magnum
 
     void Elnpr()
     {
-        // TODO proper way of writing these functions here
+        // TODO proper way of writing functions here, maybe initialize some array values as variables
+        std::size_t inxn, _type, idEh;
+        Vector3d coeff;
+
+        // *Lone Pair Energy Terms
+        Double Clp, CElp, PElp, dEh;
+        Double explp1, expvd2, dElp, deltaE;
+
+        // *Overcoordination Energy Terms
+        Double sum_ovun1, sum_ovun2;
+        Double deltalpcorr, PEover, DlpV_i;
+        Double expovun2, expovun1;
+
+        // *Undercoordination Energy Terms
+        Double expovun2n, expovun6, expovun8;
+        Double PEunder;
+
+        Double CElp_b, CElp_d, CElp_bpp;
+
+        Double div_expovun2, div_expovun2n, div_expovun1, div_expovun8;
+
+        // preperation
+
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
-            std::size_t _type = atomData[i].type;
+            _type = atomData[i].type;
 
             if (_type == 0)
                 continue;
+
+            deltaE = -atom[_type].Vale + atom[_type].Val + atomData[i].delta;
+
+            dEh = deltaE * 0.5;
+            // idEh = is_idEh * int(dEh)
+            idEh = Int(dEh);
+            explp1 = exp(-atom[_type].plp1 * pow(2.0 + deltaE - 2 * idEh, 2));
+            Clp = 2.0 * atom[_type].plp1 * explp1 * (2.0 + deltaE - 2 * idEh);
+
+            atomData[i].dDlp = Clp;
+
+            atomData[i].nlp = explp1 - Double(idEh);
+            atomData[i].deltalp = atom[_type].nlpopt - atomData[i].nlp;
+
+            if (atom[_type].mass > 21.0)
+                atomData[i].deltalp = 0.0;
             
+
+        }
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            _type = atomData[i].type;
+
+            sum_ovun1 = 0.0;
+            sum_ovun2 = 0.0;
+            for (std::size_t n = 0; n < atomData[i].neighbors.size(); ++n)
+            {
+                const std::size_t j = atomData[i].neighbors[n];
+
+                if (j < i)
+                    break;
+
+                inxn = atom[_type].inxn2[atomData[j].type] - 1;
+                for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+                {
+                    if (atomData[i].bonds[b] != j)
+                        continue;
+                    
+                    sum_ovun1 += bond[inxn].povun1 * bond[inxn].Desig * atomData[i].BO_sum[b];
+                    sum_ovun2 += (atomData[j].delta - atomData[j].deltalp) * (atomData[i].BO[b][1] + atomData[i].BO[b][2]);
+                }
+            }
+
+            // *Lone Pair
+            expvd2 = exp(-75.0 * atomData[i].deltalp);
+            dElp = atom[_type].plp2 *( (1.0 + expvd2) + 75.0 * atomData[i].deltalp * expvd2) / pow(1.0 + expvd2, 2);
+
+            // *Over Coordinate + Common part with Under Coordinate
+            expovun1 = atom[_type].povun3 * exp(atom[_type].povun4 * sum_ovun2);
+            deltalpcorr = atomData[i].delta - atomData[i].deltalp / (1.0 + expovun1);
+            expovun2 = exp(atom[_type].povun2 * deltalpcorr);
+
+            // *if one atom flys away, this term becomes zero because the total bond-order becomes zero.
+            // *Add a small value in the denominator to avoid it. See poten.f line 787,//
+            // *hulpp=(1.0/(vov1+aval(ity1)+1e-8))
+            DlpV_i = 1.0 / (deltalpcorr + atom[_type].Val + 1.0e-8);
+
+            // *Under Coordinate
+            expovun2n = 1.0 / expovun2;
+            expovun6 = exp(atom[_type].povun6 * deltalpcorr);
+            expovun8 = atom[_type].povun7 * exp(atom[_type].povun8 * sum_ovun2);
+
+            div_expovun1 = 1.0 / (1.0 + expovun1);
+            div_expovun2 = 1.0 / (1.0 + expovun2);
+            div_expovun2n = 1.0 / (1.0 + expovun2n);
+            div_expovun8 = 1.0 / (1.0 + expovun8);
+
+            // *Energy Calculation
+            PElp = atom[_type].plp2 * atomData[i].deltalp / (1.0 + expvd2);
+            PEover = sum_ovun1 * DlpV_i * deltalpcorr * div_expovun2;
+            PEunder = atom[_type].povun5 * (1.0 - expovun6) * div_expovun2n * div_expovun8;
+
+            // *if the representitive atom is a resident ,sum their potential energies.
+            PE[2] = PE[2] + PElp;
+            PE[3] = PE[3] + PEover;
+            PE[4] = PE[4] + PEunder;
+
+            // *Coefficient Calculation
+            CElp = dElp * atomData[i].dDlp;
+
+            CEover[0] = deltalpcorr * DlpV_i * div_expovun2;
+            CEover[1] = sum_ovun1 * DlpV_i * div_expovun2 * (1.0 - deltalpcorr * DlpV_i - atom[_type].povun2 * deltalpcorr * div_expovun2n);
+
+            CEover[2] = CEover[1] * (1.0 - atomData[i].dDlp * div_expovun1);
+            CEover[3] = CEover[1] * atomData[i].deltalp * atom[_type].povun4 * expovun1 * pow(div_expovun1, 2);
+
+            CEunder[0] = (atom[_type].povun5 * atom[_type].povun6 * expovun6 * div_expovun8 + PEunder * atom[_type].povun2 * expovun2n) * div_expovun2n;
+            CEunder[1] = -PEunder * atom[_type].povun8 * expovun8 * div_expovun8;
+            CEunder[2] = CEunder[0] * (1.0 - atomData[i].dDlp * div_expovun1);
+            CEunder[3] = CEunder[0] * atomData[i].deltalp * atom[_type].povun4 * expovun1 * pow(div_expovun1, 2) + CEunder[1];
+
+            // *Force Calculation
+            for (std::size_t n = 0; n < atomData[i].neighbors.size(); ++n)
+            {
+                const std::size_t j = atomData[i].neighbors[n];
+
+                if (j < i)
+                    break;
+
+                inxn = atom[_type].inxn2[atomData[j].type] - 1;
+                for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+                {
+                    if (atomData[i].bonds[b] != j)
+                        continue;
+                    
+                    CEover[4] = CEover[0] * bond[inxn].povun1 * bond[inxn].Desig;
+                    CEover[5] = CEover[3] * (1.0 - atomData[j].dDlp) * (atomData[i].BO[b][1] + atomData[i].BO[b][2]);
+                    CEover[6] = CEover[3] * (atomData[j].delta - atomData[j].deltalp);
+
+                    CEunder[4] = CEunder[3] * (1.0 - atomData[j].dDlp * (atomData[i].BO[b][1] + atomData[i].BO[b][2]));
+                    CEunder[5] = CEunder[3] * (atomData[j].delta - atomData[j].deltalp);
+
+                    CElp_b = CElp + CEover[2] + CEover[4] + CEunder[2];
+                    CElp_bpp = CEover[6] + CEunder[5];
+                    
+                    // coeff(1:3) = CElp_b + (/ 0.0, CElp_bpp, CElp_bpp/)
+                    coeff = Vector3d(CElp_b, CElp_bpp + CElp_b, CElp_bpp + CElp_b);
+                    ForceBbo(i, j, b, coeff);
+                    
+                    CElp_d = CEover[5] + CEunder[5];
+                    atomData[j].cdbnd = atomData[j].cdbnd + CElp_d;
+                }
+            }
         }
     }
 

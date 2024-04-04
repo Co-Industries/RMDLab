@@ -52,4 +52,8 @@ namespace Magnum
 
     // ? ENbond
     Containers::StaticArray<14, Double> PE;
+
+    //? Elnpr
+    Containers::StaticArray<7, Double> CEover;
+    Containers::StaticArray<6, Double> CEunder;
 }

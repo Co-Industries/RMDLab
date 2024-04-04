@@ -146,6 +146,10 @@ namespace Magnum
         Containers::StaticArray<3, Double> _eps{0.093, 0.1038, 0.0};
         Containers::StaticArray<3, Double> _alf{8.218, 9.7942, 10.0};
         Containers::StaticArray<3, Double> _rvdw1{1.355, 2.3808, 2.0};
+        Containers::StaticArray<3, Double> _Vale{1.0, 6.0, 6.0};
+        Containers::StaticArray<3, Double> _mass{1.008, 15.999, 1.0};
+        Containers::StaticArray<3, Double> _plp2{0.0, 0.1, 0.0};
+        Containers::StaticArray<3, Double> _povun5{0.0, 37.5, 0.0};
 
         // bond
         Containers::StaticArray<3, Double> _pbo1{-0.079, -0.1225, -0.0924};
@@ -161,6 +165,8 @@ namespace Magnum
         Containers::StaticArray<3, Double> _Desig{153.3934, 142.2858, 167.2086};
         Containers::StaticArray<3, Double> _Depi{0.0, 145.0, 0.0};
         Containers::StaticArray<3, Double> _Depipi{0.0, 50.8293, 0.0};
+        Containers::StaticArray<3, Double> _povun1{0.73, 0.6051, 0.6019};
+        Containers::StaticArray<3, Double> _povun2{-19.4571, -3.6039, -11.0};
 
         // ? change atom type values
         for (std::size_t i = 0; i < nso; ++i)
@@ -182,6 +188,18 @@ namespace Magnum
             atom[i].eps = _eps[i];
             atom[i].alf = _alf[i];
             atom[i].rvdw1 = _rvdw1[i];
+            atom[i].Vale = _Vale[i];
+            atom[i].plp1 = 6.0891; // vpar(16)
+            atom[i].plp2 = _plp2[i];
+            atom[i].nlpopt = 0.5 * (_Vale[i] - _Val[i]);
+            atom[i].mass = _mass[i];
+            atom[i].povun2 = _povun2[i];
+            atom[i].povun3 = 50.0; // vpar(33)
+            atom[i].povun4 = 0.6991; // vpar(32)
+            atom[i].povun5 = _povun5[i];
+            atom[i].povun6 = 1.0588; // vpar(7)
+            atom[i].povun7 = 12.1176; // vpar(9)
+            atom[i].povun8 = 13.3056; // vpar(10)
         }
 
         for (std::size_t i = 0; i < nboty; ++i)
@@ -199,6 +217,7 @@ namespace Magnum
             bond[i].Desig = _Desig[i];
             bond[i].Depi = _Depi[i];
             bond[i].Depipi = _Depipi[i];
+            bond[i].povun1 = _povun1[i];
         }
 
         for (std::size_t i = 0; i < nso; ++i)

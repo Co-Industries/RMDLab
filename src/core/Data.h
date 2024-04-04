@@ -25,7 +25,11 @@ namespace Magnum
         Double gs, gt;                         /* gradient */
         Double hs, ht;                         /* conjugate direction */
         Double delta;
-        Double ccbnd; /* coefficient of bonding energy derivative  */
+        Double ccbnd, cdbnd; /* coefficient of bonding energy derivative  */
+
+        Double nlp, dDlp; /* Number of Lone Pairs, its derivatives */
+        Double deltalp;
+
         Containers::Array<Double> hessian, dpq2;
         Containers::Array<std::size_t> neighbors, bonds;
         Containers::Array<Vector3d> bo, BO, dln_BOp;
@@ -38,7 +42,11 @@ namespace Magnum
     {
         std::string name;
         Color3 color;
-        Double vop, gam, eta, chi, rat, rapt, vnq, Val, Valval, eps, alf, rvdw1;
+        Double vop, gam, eta, chi, rat, rapt, vnq, Val;
+        Double Valval, eps, alf, rvdw1;
+        // ? Elnpr()
+        Double Vale, plp1, plp2, nlpopt, mass;
+        Double povun2, povun3, povun4, povun5, povun6, povun7, povun8; /* Over / under coordination Energy */
         Containers::Array<std::size_t> inxn2;
         Containers::Array<Double> gamW, gamij, r0s, r0p, r0pp, Dij, alpij, rvdW;
         Double bo131, bo132, bo133;
@@ -53,7 +61,8 @@ namespace Magnum
         Double pboc1, pboc2, pboc3, pboc4, pboc5;  /* Bond Order correction terms (f1-5) */
         Double cBOp1, cBOp3, cBOp5;                /* Bond order calculations */
         Double ovc, v13cor;                        /* a flag to apply fn4 and fn5 */
-        Double pbe1, pbe2, Desig, Depi, Depipi;                  /* Bond Energy parameters (eq. 6) */
+        Double pbe1, pbe2, Desig, Depi, Depipi;    /* Bond Energy parameters (eq. 6) */
+        Double povun1;     /* Overcoordination Energy (eq. 11) */
         Containers::StaticArray<3, Double> swh;    /* <switch> flag to omit pi and double pi bond in bond-order prime calculation */
     };
     extern Containers::StaticArray<3, Bond> bond; // 3 = nboty
@@ -104,6 +113,10 @@ namespace Magnum
     // 0-Esystem, 1-Ebond, 2-Elp, 3-Eover, 4-Eunder, 5-Eval, 6-Epen
     // 7-Ecoa,  8-Etors, 9-Econj, 10-Ehbond, 11-Evdwaals, 12-Ecoulomb 13-Echarge
     extern Containers::StaticArray<14, Double> PE; /* Potential Energies */
+
+    //? Elnpr
+    extern Containers::StaticArray<7, Double> CEover;
+    extern Containers::StaticArray<6, Double> CEunder;
 }
 
 #endif
