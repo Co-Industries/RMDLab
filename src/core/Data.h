@@ -48,6 +48,7 @@ namespace Magnum
         Double Vale, plp1, plp2, nlpopt, mass;
         Double povun2, povun3, povun4, povun5, povun6, povun7, povun8; /* Over / under coordination Energy */
         Containers::Array<std::size_t> inxn2;
+        Containers::Array<Containers::Array<std::size_t>> inxn3hb;
         Containers::Array<Double> gamW, gamij, r0s, r0p, r0pp, Dij, alpij, rvdW;
         Double bo131, bo132, bo133;
     };
@@ -67,6 +68,11 @@ namespace Magnum
     };
     extern Containers::StaticArray<3, Bond> bond; // 3 = nboty
 
+    struct H_Bond
+    {
+        Double r0hb, phb1, phb2, phb3; /* Hydrogren Bond Energy (eq. 18) */
+    };
+    extern Containers::StaticArray<1, H_Bond> h_bond; // 1 = nhbty
     // * Parameters
     extern std::size_t NATOMS;   // Number of Atoms
     extern Float atomRadius;     // rendering
@@ -79,12 +85,15 @@ namespace Magnum
     extern const Float rctap0;        // [10A]
     extern const std::size_t NTABLE;
     extern const Double MINBOSIG; /* <minBOsig>: criterion to decide <rc> */
+    extern const Double MINBO0; /* <minBO0>: cutoff bond order  */
     extern const Double cutof2_bo;
     extern const Double vpar30;       /* Cutoff for bond order (*100) */
     extern const Double vpar1, vpar2; /* Overcoordination parameter [ffield]*/
     extern const Double QEq_tol;      /* <QEq_thrsld> energy criterion in QEq routine */
     extern const Double pvdW1;
     extern Double pvdW1h, pvdW1inv;
+
+    extern const Double MAXANGLE, MINANGLE;
 
     // ? Coulomb Energy (eq. 22)
     extern const Double Cclmb0_qeq; /* [ev] */
@@ -102,6 +111,7 @@ namespace Magnum
 
     extern std::size_t nso;
     extern std::size_t nboty;
+    extern std::size_t nhbty;
 
     //? QEq
     extern Containers::StaticArray<2, Double> Gnew;

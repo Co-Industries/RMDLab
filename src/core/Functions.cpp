@@ -703,6 +703,132 @@ namespace Magnum
         }
     }
 
+    void ForceB(const std::size_t &i, const std::size_t &j, const std::size_t &b, const Double &coeff)
+    {
+        Vector3d Cbond, dr, ff;
+
+        Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
+        dr = atomData[i].position - atomData[j].position;
+        ff = Cbond[0] * atomData[i].dBOp[b] * dr;
+
+        atomData[i].force = atomData[i].force - ff;
+        atomData[i].force = atomData[j].force + ff;
+
+        // A3 is not necessary anymore with the new BO def. 
+        Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
+        Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[b];
+
+        atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
+        atomData[j].ccbnd = atomData[j].ccbnd + Cbond[2];
+    }
+
+    void ForceA3(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const Vector3d &da0, const Vector3d &da1, const Double &da0_0, const Double &da1_0)
+    {
+        Vector3d Ci, Ck;
+        Vector3d fij, fjk, fijjk;
+        Containers::StaticArray<2, Vector2d> Caa;
+        Double CCisqr, coCC;
+
+        Caa[1][1] = pow(da0_0, 2);
+        Caa[1][0] = (da0 * da1).sum();
+        Caa[0][1] = Caa[1][0];
+        Caa[0][0] = pow(da1_0, 2);
+
+        CCisqr = 1.0 / (da0_0 * da1_0);
+        coCC = coeff * CCisqr;
+
+        //Some of calculations are unnecessary due to the action-reaction relation.
+        Ci[0] = -(Caa[1][0] / Caa[1][1]);
+        Ci[1] = 1.0;
+
+        Ck[0] = -1.0;
+        Ck[1] = Caa[1][0] / Caa[0][0];
+
+        fij = coCC * (Ci[0] * da0 + Ci[1] * da1);
+        fjk = coCC * (Ck[0] * da0 + Ck[1] * da1);
+        fijjk = -fij + fjk;
+
+        atomData[i].force = atomData[i].force + fij;
+        atomData[j].force = atomData[j].force + fijjk;
+        atomData[k].force = atomData[k].force - fjk;
+    }
+
+    void Ehb()
+    {
+        std::size_t j, k, itype, jtype, ktype, inxnhb;
+        Vector3d rjk, rij;
+        Double rjk_sqrt, rij_sqrt;
+        Double cos_ijk, theta_ijk, sin_ijk_half, sin_xhz4, cos_xhz1;
+        Double exp_hb2, exp_hb3;
+        Double PEhb;
+        Vector3d CEhb, ff;
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            itype = atomData[i].type;
+                for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+                {
+                    j = atomData[i].bonds[b];
+                    jtype = atomData[j].type;
+                    
+                    if (jtype == 2 && atomData[i].BO_sum[b] > MINBO0)
+                    {
+                        for (std::size_t ki; ki < atomData[i].neighbors.size(); ++ki)
+                        {
+                            k = atomData[i].neighbors[ki];
+                            ktype = atomData[k].type;
+
+                            inxnhb = atom[itype].inxn3hb[jtype][ktype];
+
+                            if (j != k && i != k && inxnhb != 0)
+                            {
+                                if (atomData[i].dpq2[k] < Double(rctap2))
+                                {
+                                    rjk = atomData[j].position - atomData[k].position;
+                                    rjk_sqrt = sqrt((rjk * rjk).sum());
+
+                                    rij = atomData[i].position - atomData[j].position;
+                                    rij_sqrt = sqrt((rij * rij).sum());
+
+                                    cos_ijk = -(rij * rjk).sum() / (rij_sqrt * rjk_sqrt);
+                                    if (cos_ijk > MAXANGLE)
+                                        cos_ijk = MAXANGLE;
+                                    if (cos_ijk < MINANGLE)
+                                        cos_ijk = MINANGLE;
+                                    
+                                    theta_ijk = acos(cos_ijk);
+
+                                    sin_ijk_half = sin(0.5 * theta_ijk);
+                                    sin_xhz4 = pow(sin_ijk_half, 4);
+                                    cos_xhz1 = (1.0 - cos_ijk);
+
+                                    exp_hb2 = exp(-h_bond[inxnhb].phb2 * atomData[i].BO_sum[b]);
+                                    exp_hb3 = exp(-h_bond[inxnhb].phb3 * (h_bond[inxnhb].r0hb / rjk_sqrt + rjk_sqrt / h_bond[inxnhb].r0hb - 2.0));
+
+                                    PEhb = h_bond[inxnhb].phb1 * (1.0 - exp_hb2) * exp_hb3 * sin_xhz4;
+
+                                    PE[10] = PE[10] + PEhb;
+
+                                    CEhb[0] = h_bond[inxnhb].phb1 * h_bond[inxnhb].phb2 * exp_hb2 * exp_hb3 * sin_xhz4;
+                                    CEhb[1] = -0.5 * h_bond[inxnhb].phb1 * (1.0 - exp_hb2) * exp_hb3 * cos_xhz1;
+                                    CEhb[2] = -PEhb * h_bond[inxnhb].phb3 * (-h_bond[inxnhb].r0hb / pow(rjk_sqrt, 2) + 1.0 / h_bond[inxnhb].r0hb) * (1.0 / rjk_sqrt);
+
+                                    ForceB(i, j, b, CEhb[0]);
+                                    ForceA3(CEhb[1], i, j, k, rij, rjk, rij_sqrt, rjk_sqrt);
+
+                                    ff = CEhb[2] * rjk;
+
+                                    atomData[j].force = atomData[k].force - ff;
+                                    atomData[k].force = atomData[k].force + ff;
+                                }
+                            }
+                        }
+                    }
+                }
+            
+        }
+    }
+
     void FORCE()
     {
         // calculate BO prime
@@ -712,5 +838,6 @@ namespace Magnum
         ENbond();
         Ebond();
         Elnpr();
+        Ehb();
     }
 }

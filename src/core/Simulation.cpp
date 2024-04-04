@@ -121,12 +121,20 @@ namespace Magnum
             arrayResize(atom[i].Dij, nso);
             arrayResize(atom[i].alpij, nso);
             arrayResize(atom[i].rvdW, nso);
+            arrayResize(atom[i].inxn3hb, nso);
+
+            for (std::size_t j = 0; j < nso; ++j)
+            {
+                arrayResize(atom[i].inxn3hb[j], nso);
+            }
         }
 
         atom[0].inxn2[0] = 1;
         atom[1].inxn2[1] = 2;
         atom[0].inxn2[1] = 3;
         atom[1].inxn2[0] = 3;
+
+        atom[1].inxn3hb[0][1] = 1;
 
         // atom
         Containers::StaticArray<3, std::string> _name{"H", "O", "X"};
@@ -167,6 +175,12 @@ namespace Magnum
         Containers::StaticArray<3, Double> _Depipi{0.0, 50.8293, 0.0};
         Containers::StaticArray<3, Double> _povun1{0.73, 0.6051, 0.6019};
         Containers::StaticArray<3, Double> _povun2{-19.4571, -3.6039, -11.0};
+
+        // h_bond
+        Containers::StaticArray<1, Double> _phb1{-3.6983};
+        Containers::StaticArray<1, Double> _phb2{1.7831};
+        Containers::StaticArray<1, Double> _phb3{17.0964};
+        Containers::StaticArray<1, Double> _r0hb{2.1653};
 
         // ? change atom type values
         for (std::size_t i = 0; i < nso; ++i)
@@ -220,6 +234,13 @@ namespace Magnum
             bond[i].povun1 = _povun1[i];
         }
 
+        for(std::size_t i = 0; i < nhbty; ++i)
+        {
+            h_bond[i].phb1 = _phb1[i];
+            h_bond[i].phb2 = _phb2[i];
+            h_bond[i].phb3 = _phb3[i];      
+            h_bond[i].r0hb = _r0hb[i]; 
+        }
         for (std::size_t i = 0; i < nso; ++i)
         {
             for (std::size_t j = 0; j < nso; ++j)
