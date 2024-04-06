@@ -15,7 +15,7 @@
 #include "Simulation.h"
 
 namespace Magnum
-{ 
+{
     Simulation::Simulation(Scene3D &_scene, SceneGraph::DrawableGroup3D &_drawables)
     {
         Debug{} << "Simulation has loaded";
@@ -77,7 +77,7 @@ namespace Magnum
             const std::size_t tempType = std::rand() / ((RAND_MAX + 1u) / 2); // 0 or 1
 
             atomData[i].position = tempPosition * 200.0 - Vector3d(100.0);
-            //atomData[i].position.y() *= 0.5;
+            // atomData[i].position.y() *= 0.5;
             atomData[i].velocity = (tempVelocity * 200.0 - Vector3d{100.0}).resized(randomVelocity);
             atomData[i].type = tempType;
             atomFloatPositions[i] = Vector3(atomData[i].position);
@@ -97,7 +97,6 @@ namespace Magnum
 
         QEq();
         FORCE();
-        
     }
 
     void Simulation::GETPARAMS()
@@ -124,31 +123,36 @@ namespace Magnum
             arrayResize(atom[i].rvdW, nso);
             arrayResize(atom[i].inxn3hb, nso);
             arrayResize(atom[i].inxn3, nso);
+            arrayResize(atom[i].inxn4, nso);
 
             for (std::size_t j = 0; j < nso; ++j)
             {
                 arrayResize(atom[i].inxn3hb[j], nso);
                 arrayResize(atom[i].inxn3[j], nso);
+                arrayResize(atom[i].inxn4[j], nso);
+
+                for (std::size_t k = 0; k < nso; ++k)
+                {
+                    arrayResize(atom[i].inxn4[j][k], nso);
+                }
             }
         }
 
         // TODO change to loop when there is a input system
         atom[0].inxn2[0] = 1;
         atom[1].inxn2[1] = 2;
-        
+
         atom[0].inxn2[1] = 3;
         atom[1].inxn2[0] = 3;
 
-
         atom[1].inxn3hb[0][1] = 1;
-
 
         atom[0].inxn3[0][0] = 1;
         atom[1].inxn3[1][1] = 2;
-        
+
         atom[0].inxn3[1][1] = 3;
         atom[1].inxn3[1][0] = 3;
-        
+
         atom[0].inxn3[1][0] = 4;
         atom[1].inxn3[0][1] = 5;
 
@@ -212,6 +216,17 @@ namespace Magnum
         Containers::StaticArray<6, Double> _ppen1{0.0, 50.0, 0.0, 0.0, 0.0, 0.0};
         Containers::StaticArray<6, Double> _pval4{1.04, 1.0783, 1.168, 2.0521, 2.9, 1.0772};
 
+        // torsions
+        Containers::StaticArray<6, Double> _i1{1, 1, 2, 0, 0, 0};
+        Containers::StaticArray<6, Double> _i2{2, 2, 2, 1, 1, 2};
+        Containers::StaticArray<6, Double> _i3{2, 2, 2, 1, 2, 2};
+        Containers::StaticArray<6, Double> _i4{1, 2, 2, 0, 0, 0};
+        Containers::StaticArray<6, Double> _V1{2.5, 0.8302, -2.5, 0.0, 0.0, 0.5511};
+        Containers::StaticArray<6, Double> _V2{-4.0, -4.0, -4.0, 0.0, 0.1, 25.415};
+        Containers::StaticArray<6, Double> _V3{0.9, -0.7763, 1.0, 0.0, 0.02, 1.133};
+        Containers::StaticArray<6, Double> _ptor1{-2.5, -2.5, -2.5, 0.0, -2.5415, -5.1903};
+        Containers::StaticArray<6, Double> _pcot1{-1.0, -1.0, -1.0, 0.0, 0.0, -1.0};
+
         // ? change atom type values
         for (std::size_t i = 0; i < nso; ++i)
         {
@@ -238,14 +253,14 @@ namespace Magnum
             atom[i].nlpopt = 0.5 * (_Vale[i] - _Val[i]);
             atom[i].mass = _mass[i];
             atom[i].povun2 = _povun2[i];
-            atom[i].povun3 = 50.0; // vpar(33)
+            atom[i].povun3 = 50.0;   // vpar(33)
             atom[i].povun4 = 0.6991; // vpar(32)
             atom[i].povun5 = _povun5[i];
-            atom[i].povun6 = 1.0588; // vpar(7)
+            atom[i].povun6 = 1.0588;  // vpar(7)
             atom[i].povun7 = 12.1176; // vpar(9)
             atom[i].povun8 = 13.3056; // vpar(10)
             atom[i].Valboc = _Valboc[i];
-            
+
             if (atom[i].mass < 21.0 && atom[i].Valboc != atom[i].Valval)
                 atom[i].Valboc = atom[i].Valval;
             atom[i].Valangle = atom[i].Valboc;
@@ -275,8 +290,8 @@ namespace Magnum
         {
             h_bond[i].phb1 = _phb1[i];
             h_bond[i].phb2 = _phb2[i];
-            h_bond[i].phb3 = _phb3[i];      
-            h_bond[i].r0hb = _r0hb[i]; 
+            h_bond[i].phb3 = _phb3[i];
+            h_bond[i].r0hb = _r0hb[i];
         }
 
         for (std::size_t i = 0; i < nvaty; ++i)
@@ -290,17 +305,58 @@ namespace Magnum
             angle[i].pval4 = _pval4[i];
             // Terms that don't depend on atom types
             angle[i].pval6 = 33.8667; // vpar(15)
-            angle[i].pval8 = 1.8512; // vpar(34)
-            angle[i].pval9 = 1.0563; // vpar(17)
+            angle[i].pval8 = 1.8512;  // vpar(34)
+            angle[i].pval9 = 1.0563;  // vpar(17)
             angle[i].pval10 = 2.0384; // vpar(18)
-            angle[i].ppen2 = 6.929; // vpar(20)
-            angle[i].ppen3 = 0.3989; // vpar(21)
-            angle[i].ppen4 = 3.9954; // vpar(22)
+            angle[i].ppen2 = 6.929;   // vpar(20)
+            angle[i].ppen3 = 0.3989;  // vpar(21)
+            angle[i].ppen4 = 3.9954;  // vpar(22)
             angle[i].pcoa2 = 26.5405; // vpar(3)
-            angle[i].pcoa3 = 2.6962; // vpar(39)
-            angle[i].pcoa4 = 2.1365; // vpar(31)
+            angle[i].pcoa3 = 2.6962;  // vpar(39)
+            angle[i].pcoa4 = 2.1365;  // vpar(31)
             // convert from degrees to radians:
             angle[i].theta00 = (Constantsd::pi() / 180.0) * angle[i].theta00;
+        }
+
+        for (std::size_t i = 0; i < ntoty; ++i)
+        {
+            std::size_t i1 = _i1[i];
+            std::size_t i2 = _i2[i];
+            std::size_t i3 = _i3[i];
+            std::size_t i4 = _i4[i];
+            if (i1 == 0)
+            {
+                for (i1 = 0; i1 < nso; ++i1)
+                {
+                    for (i4 = 0; i4 < nso; ++i4)
+                    {
+                        if (atom[i1].inxn4[i2][i3][i4] == 0 && atom[i1].inxn4[i3][i2][i4] == 0)
+                        {
+                            atom[i1].inxn4[i2][i3][i4] = i + 1;
+                            atom[i4].inxn4[i2][i3][i1] = i + 1;
+                            atom[i1].inxn4[i3][i2][i4] = i + 1;
+                            atom[i4].inxn4[i3][i2][i1] = i + 1;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                atom[i1].inxn4[i2][i3][i4] = i + 1;
+                atom[i4].inxn4[i2][i3][i1] = i + 1;
+                atom[i1].inxn4[i3][i2][i4] = i + 1;
+                atom[i4].inxn4[i3][i2][i1] = i + 1;
+            }
+
+            torsion[i].ptor1 = _ptor1[i];
+            torsion[i].ptor2 = 5.7796; // vpar(24)
+            torsion[i].ptor3 = 10.0;   // vpar(25)
+            torsion[i].ptor4 = 1.9487; // vpar(26)
+            torsion[i].V1 = _V1[i];
+            torsion[i].V2 = _V2[i];
+            torsion[i].V3 = _V3[i];
+            torsion[i].pcot1 = _pcot1[i];
+            torsion[i].pcot2 = 2.1645; // vpar(28)
         }
 
         for (std::size_t i = 0; i < nso; ++i)
@@ -364,6 +420,12 @@ namespace Magnum
     {
         // TODO declare variables outside loop for performance (not that important since this runs only once)
 
+        // *time unit conversion from [fs] -> time unit
+        dt = dt / UTIME;
+
+        // *square the spring const in the extended Lagrangian method
+        Lex_w2 = 2.0 * Lex_k / dt / dt;
+
         // ? CUTOFFLENGTH()
         cutoff_vpar30 = cutof2_bo * vpar30;
 
@@ -400,6 +462,9 @@ namespace Magnum
 
         for (std::size_t i = 0; i < nso; ++i)
         {
+            atom[i].dthm = dt * 0.5 / atom[i].mass;
+            atom[i].hmas = 0.5 * atom[i].mass;
+
             for (std::size_t j = 0; j < nso; ++j)
             {
                 inxn = atom[i].inxn2[j];
@@ -439,15 +504,15 @@ namespace Magnum
                     TBL_Evdw_p[k][inxn] = Tap * Dij0 * (exp1 - 2.0 * exp2);
                     TBL_Eclmb_p[k][inxn] = Tap * Cclmb0 * dr3gamij;
                     TBL_Eclmb_QEq[k][inxn] = Tap * Cclmb0_qeq * dr3gamij;
-                    
-                    //Force calculation:
+
+                    // Force calculation:
                     Double dTap = 7.0 * CTap[7] * dr5 + 6.0 * CTap[6] * dr4 + 5.0 * CTap[5] * dr3 + 4.0 * CTap[4] * dr2;
                     Double dfn13 = pow(rij_vd1 + gamwinvp, pvdW1inv - 1.0) * pow(dr2, pvdW1h - 1.0);
 
                     TBL_Evdw_d[k][inxn] = Dij0 * (dTap * (exp1 - 2.0 * exp2) - Tap * (alphaij / rvdW0) * (exp1 - exp2) * dfn13);
                     TBL_Eclmb_d[k][inxn] = Cclmb0 * dr3gamij * (dTap - pow(dr3gamij, 3) * Tap * dr1);
 
-                    //TODO if(isLG) then
+                    // TODO if(isLG) then
                 }
 
                 // ? CUTOFFLENGTH()
@@ -482,18 +547,27 @@ namespace Magnum
 
     void Simulation::UPDATE_ATOMS()
     {
-        QEq();
-        FORCE();
-        constexpr Float dt = 1.0 / 1.2;
+        std::size_t itype;
 
+        vkick(1.0);
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            atomData[i].qsfv = atomData[i].qsfv + 0.5 * dt * Lex_w2 * atomData[i].q - atomData[i].qsfp;
+            atomData[i].qsfp = atomData[i].qsfp + dt * atomData[i].qsfv;
+        }
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
             Vector3d pos = atomData[i].position + atomData[i].velocity * dt;
             for (std::size_t j = 0; j < 3; ++j)
             {
-                if (pos[j] < -100.0 || pos[j] > 100.0)
-                    atomData[i].velocity[j] = -atomData[i].velocity[j];
-                pos[j] = Math::clamp(pos[j], -100.0, 100.0);
+                if (pos[j] < -BORDER)
+                {
+                    pos[j] = pos[j] + BORDER2;
+                }
+                else if (pos[j] > BORDER)
+                {
+                    pos[j] = pos[j] - BORDER2;
+                }
             }
 
             atomData[i].position = pos;
@@ -501,6 +575,28 @@ namespace Magnum
             atomInstanceData[i].transformationMatrix.translation() = atomFloatPositions[i];
         }
         atomInstanceBuffer.setData(atomInstanceData, GL::BufferUsage::DynamicDraw);
+
+        if (nstep % qstep == 0)
+            QEq();
+        FORCE();
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            itype = atomData[i].type;
+            astr[0] = astr[0] + atomData[i].velocity[0] * atomData[i].velocity[0] * atom[itype].mass;
+            astr[1] = astr[1] + atomData[i].velocity[1] * atomData[i].velocity[1] * atom[itype].mass;
+            astr[2] = astr[2] + atomData[i].velocity[2] * atomData[i].velocity[2] * atom[itype].mass;
+            astr[3] = astr[3] + atomData[i].velocity[1] * atomData[i].velocity[2] * atom[itype].mass;
+            astr[4] = astr[4] + atomData[i].velocity[2] * atomData[i].velocity[0] * atom[itype].mass;
+            astr[5] = astr[5] + atomData[i].velocity[0] * atomData[i].velocity[1] * atom[itype].mass;
+        }
+        //vkick(1.0);
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            atomData[i].qsfv = atomData[i].qsfv = 0.5 * dt * Lex_w2 * (atomData[i].q - atomData[i].qsfp);
+        }
+        ++nstep;
     }
 
     void Simulation::UPDATE_OCTREE()
@@ -608,15 +704,12 @@ namespace Magnum
 
                     atomInstanceData[i].color.g() = atomInstanceData[i].color.g() + 0.4f;
                     atomInstanceData[j].color.g() = atomInstanceData[j].color.g() + 0.4f;
-
-                    
                 }
                 if (dpq2 < Float(bond[inxn].rc2))
                 {
                     arrayAppend(atomData[i].bonds, InPlaceInit, j);
                     arrayAppend(atomData[j].bonds, InPlaceInit, i);
                 }
-                
             }
         }
     }

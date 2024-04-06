@@ -42,11 +42,20 @@ namespace Magnum
     void ForceA3(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const Vector3d &da0, const Vector3d &da1, const Double &da0_0, const Double &da1_0);
 
     void E3b();
+    void E4b();
+    void ForceA4(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const std::size_t &l, const Vector3d &da0, const Vector3d &da1, const Vector3d &da2, const Double &da0_0, const Double &da1_0, const Double &da2_0);
+    
+    void ForceBondedTerms();
+    /* Calculate force from derivative of delta(i) */
+    void ForceD(const std::size_t &i, const Double &coeff);
     
     // ? bo.F90
     void BOCALC();
     void BOPRIM(); /* Calculates the BOp(0:3,i,j) and the deltap(i) */
     void BOFULL(); /* Calculates the Bond Order and its derivatives */
+
+    // ? vkick
+    void vkick(const Double &dtf);
 }
 
 #endif

@@ -4,11 +4,13 @@
 
 namespace Magnum
 {
+    Double dt = 0.25;
     Containers::Array<AtomData> atomData;
     Containers::StaticArray<3, Atom> atom;
     Containers::StaticArray<3, Bond> bond;
     Containers::StaticArray<1, H_Bond> h_bond;
     Containers::StaticArray<6, Angle> angle;
+    Containers::StaticArray<6, Torsion> torsion;
 
     // * Parameters
     std::size_t NATOMS = 0;
@@ -31,7 +33,10 @@ namespace Magnum
     const Double QEq_tol = 1.0e-7;
     const Double pvdW1 = 1.5591;
     Double pvdW1h, pvdW1inv;
-    const Double MAXANGLE = 0.999999999999, MINANGLE = -0.999999999999;
+    
+    const Double MAXANGLE = 0.999999999999;
+    const Double MINANGLE = -0.999999999999;
+    const Double NSMALL = 1.0e-10;
 
     // ? Coulomb Energy (eq. 22)
     const Double Cclmb0_qeq = 14.4;
@@ -50,6 +55,7 @@ namespace Magnum
     std::size_t nboty = 3;
     std::size_t nhbty = 1;
     std::size_t nvaty = 6;
+    std::size_t ntoty = 6;
 
     // ? QEq
     Containers::StaticArray<2, Double> Gnew;
@@ -63,4 +69,15 @@ namespace Magnum
     //? Elnpr
     Containers::StaticArray<7, Double> CEover;
     Containers::StaticArray<6, Double> CEunder;
+
+    //? Force
+    Containers::StaticArray<6, Double> astr;
+
+    const Double UTIME = 1.0e3 / 20.455;
+    Double Lex_w2 = 1.0;
+    Double Lex_k = 2.0;
+    std::size_t nstep = 0, qstep = 1;
+
+    Double BORDER = 100.0;
+    Double BORDER2 = 2 * BORDER;
 }

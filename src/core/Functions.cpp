@@ -1076,6 +1076,346 @@ namespace Magnum
         }
     }
 
+    void ForceA4(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const std::size_t &l, const Vector3d &da0, const Vector3d &da1, const Vector3d &da2, const Double &da0_0, const Double &da1_0, const Double &da2_0)
+    {
+        Vector3d rij, rjk, rkl;
+        Vector3d fij, fjk, fkl, fijjk, fjkkl;
+        Vector3d Cwi, Cwj, Cwl;
+        Containers::StaticArray<3, Vector3d> Caa;
+        Vector2d Daa;
+        Double DDisqr, coDD, com;
+
+        Caa[0][0] = pow(da0_0, 2);
+        Caa[0][1] = (da0 * da1).sum();
+        Caa[0][2] = (da0 * da2).sum();
+
+        Caa[1][0] = Caa[0][1];
+        Caa[1][1] = pow(da1_0, 2);
+        Caa[1][2] = (da1 * da2).sum();
+        
+        Caa[2][0] = Caa[0][2];
+        Caa[2][1] = Caa[1][2];
+        Caa[2][2] = pow(da2_0, 2);
+
+        Daa[0] = Caa[0][0] * Caa[1][1] - Caa[0][1] * Caa[0][1];
+        Daa[1] = Caa[1][1] * Caa[2][2] - Caa[1][2] * Caa[1][2];
+
+        DDisqr = 1.0 / sqrt(Daa[0] * Daa[1]);
+        coDD = coeff * DDisqr;
+
+        com = Caa[1][0] * Caa[1][2] - Caa[0][2] * Caa[1][1];
+
+        // Some of calculations are unnecessary due to the action-reaction relation.
+        Cwi[0] = Caa[1][1] / Daa[0] * com;
+        Cwi[1] = -(Caa[1][2] + Caa[0][1] / Daa[0] * com);
+        Cwi[2] = Caa[1][1];
+
+        Cwj[0] = -(Caa[1][2] + (Caa[1][1] + Caa[1][0]) / Daa[0] * com);
+        Cwj[1] = -(Caa[1][2] - 2 * Caa[0][2] - Caa[2][2] / Daa[1] * com - (Caa[0][0] + Caa[1][0]) / Daa[0] * com);
+        Cwj[2] = -(Caa[1][0] + Caa[1][1] + Caa[1][2] / Daa[1] * com);
+
+        Cwl[0] = -Caa[1][1];
+        Cwl[1] = (Caa[1][0] + Caa[2][1] / Daa[1] * com);
+        Cwl[2] = -(Caa[1][1] / Daa[1] * com);
+
+        rij = da0;
+        rjk = da1;
+        rkl = da2;
+
+        fij = coDD * (Cwi[0] * rij + Cwi[1] * rjk + Cwi[2] * rkl);
+        fjk = coDD * ((Cwj[0] + Cwi[0]) * rij + (Cwj[1] + Cwi[1]) * rjk + (Cwj[2] + Cwi[2]) * rkl);
+        fkl = -coDD * (Cwl[0] * rij + Cwl[1] * rjk + Cwl[2] * rkl);
+
+        fijjk = -fij + fjk;
+        fjkkl = -fjk + fkl;
+
+        atomData[i].force = atomData[i].force + fij;
+        atomData[j].force = atomData[j].force + fijjk;
+        atomData[k].force = atomData[k].force + fjkkl;
+        atomData[l].force = atomData[l].force - fkl;
+    }
+
+    void E4b()
+    {
+        std::size_t itype, jtype, ktype, ltype;
+        std::size_t i, k, l;
+        std::size_t inxn;
+
+        // angles
+        Vector3d cos_ijkl;
+        Double cos_ijkl_sqr, cos_2ijkl, sin_ijk, sin_jkl, tan_ijk_i, tan_jkl_i; // ! [unused] sin_ijkl
+        Double cos_ijk, cos_jkl, theta_ijk, theta_jkl, omega_ijkl;
+
+        // vectors
+        Vector3d rjk, rij, rkl, crs_ijk, crs_jkl;
+        Double rjk0, rij0, rkl0, crs_ijk0, crs_jkl0;
+
+        Double delta_ang_j, delta_ang_k, delta_ang_jk;
+        Double exp_tor1, exp_tor3, exp_tor4, exp_tor34_i, fn10, fn11, dfn11, fn12, PEtors, PEconj, cmn;
+        Vector3d exp_tor2;
+
+        // coefficents
+        Containers::StaticArray<9, Double> CEtors;
+        Containers::StaticArray<6, Double> CEconj;
+        Vector3d C4body_a, C4body_b, C4body_b_jk;
+
+        Double Cconj, BOij, BOjk, BOkl, btb2;
+
+        for (std::size_t j = 0; j < NATOMS; ++j)
+        {
+            jtype = atomData[j].type;
+            delta_ang_j = atomData[j].delta + atom[jtype].Val - atom[jtype].Valangle;
+
+            for (std::size_t k0; k0 < atomData[j].bonds.size(); ++k0)
+            {
+                if (atomData[j].BO_sum[k0] <= cutof2_esub)
+                {
+                    BOjk = atomData[j].BO_sum[k0] - cutof2_esub;
+                    k = atomData[j].bonds[k0];
+
+                    if (j < k)
+                        continue;
+
+                    ktype = atomData[k].type;
+                    delta_ang_k = atomData[k].delta + atom[ktype].Val - atom[ktype].Valangle;
+                    delta_ang_jk = delta_ang_j + delta_ang_k;
+
+                    rjk = atomData[j].position - atomData[k].position;
+                    rjk0 = sqrt(rjk.dot());
+
+                    for (std::size_t i0; i0 < atomData[j].bonds.size(); ++i0)
+                    {
+                        if (atomData[j].BO_sum[i0] > cutof2_esub && (atomData[j].BO_sum[i0] * atomData[j].BO_sum[i0]) > cutof2_esub)
+                        {
+                            BOij = atomData[j].BO_sum[i0] - cutof2_esub;
+                            i = atomData[j].bonds[i0];
+
+                            if (i == k)
+                                continue;
+
+                            itype = atomData[i].type;
+                            rij = atomData[i].position - atomData[j].position;
+                            rij0 = sqrt(rij.dot());
+
+                            // Calculate the angle i-j-k
+                            cos_ijk = -(rij * rjk).sum() / (rij0 * rjk0);
+                            if (cos_ijk > MAXANGLE)
+                                cos_ijk = MAXANGLE;
+                            if (cos_ijk < MINANGLE)
+                                cos_ijk = MINANGLE;
+
+                            theta_ijk = acos(cos_ijk);
+                            sin_ijk = sin(theta_ijk);
+                            tan_ijk_i = 1.0 / tan(theta_ijk);
+
+                            crs_ijk = Math::cross(rij, rjk);
+                            crs_ijk0 = sqrt(crs_ijk.dot());
+                            if (crs_ijk0 < NSMALL)
+                                crs_ijk0 = NSMALL;
+
+                            for (std::size_t l0; l0 < atomData[k].bonds.size(); ++l0)
+                            {
+                                if (atomData[k].BO_sum[l0] > cutof2_esub && (atomData[k].BO_sum[l0] * atomData[k].BO_sum[l0]) > cutof2_esub)
+                                {
+                                    BOkl = atomData[k].BO_sum[l0] - cutof2_esub;
+                                    l = atomData[k].bonds[l0];
+                                    ltype = atomData[l].type;
+                                    inxn = atom[itype].inxn4[jtype][ktype][ltype];
+
+                                    if (inxn != 0 && i != l && j != l)
+                                    {
+                                        inxn -= 1;
+                                        // cutoff condition to ignore bonding
+                                        if (pow(atomData[j].BO_sum[i0] * atomData[j].BO_sum[k0], 2) * atomData[k].BO_sum[l0] > MINBO0)
+                                        {
+                                            rkl = atomData[k].position - atomData[l].position;
+                                            rkl0 = sqrt(rkl.dot());
+
+                                            exp_tor2[0] = exp(-torsion[inxn].ptor2 * BOij); // i-j
+                                            exp_tor2[1] = exp(-torsion[inxn].ptor2 * BOjk); // j-k
+                                            exp_tor2[2] = exp(-torsion[inxn].ptor2 * BOkl); // k-l
+
+                                            exp_tor3 = exp(-torsion[inxn].ptor3 * delta_ang_jk);
+                                            exp_tor4 = exp(torsion[inxn].ptor4 * delta_ang_jk);
+                                            exp_tor34_i = 1.0 / (1.0 + exp_tor3 + exp_tor4);
+
+                                            fn10 = (1.0 - exp_tor2[0]) * (1.0 - exp_tor2[1]) * (1.0 - exp_tor2[2]);
+                                            fn11 = (2.0 + exp_tor3) / (1.0 + exp_tor3 + exp_tor4);
+
+                                            fn12 = exp(-torsion[inxn].pcot2 * (pow(BOij - 1.5, 2) + pow(BOjk - 1.5, 2) + pow(BOkl - 1.5, 2)));
+                                            // pi-bond value used here is not the subtracted one but the original value
+                                            btb2 = 2.0 - atomData[j].BO[k0][1] - fn11;
+                                            exp_tor1 = exp(pow(torsion[inxn].ptor1 * btb2, 2));
+
+                                            // Get angle variables i-j-k, j-k-l, i-j-k-l
+                                            cos_jkl = -(rjk * rkl).sum() / (rjk0 * rkl0);
+                                            if (cos_jkl > MAXANGLE)
+                                                cos_jkl = MAXANGLE;
+                                            if (cos_jkl < MINANGLE)
+                                                cos_jkl = MINANGLE;
+
+                                            theta_jkl = acos(cos_jkl);
+                                            sin_jkl = sin(theta_jkl);
+                                            tan_jkl_i = 1.0 / tan(theta_jkl);
+
+                                            crs_jkl = Math::cross(rjk, rkl);
+                                            crs_jkl0 = sqrt(crs_jkl.dot());
+                                            if (crs_jkl0 < NSMALL)
+                                                crs_jkl0 = NSMALL;
+
+                                            cos_ijkl[0] = (crs_ijk * crs_jkl).sum() / (crs_ijk0 * crs_jkl0);
+                                            if (cos_ijkl[0] > MAXANGLE)
+                                                cos_ijkl[0] = MAXANGLE;
+                                            if (cos_ijkl[0] < MINANGLE)
+                                                cos_ijkl[0] = MINANGLE;
+
+                                            omega_ijkl = acos(cos_ijkl[0]);
+                                            cos_ijkl_sqr = cos_ijkl[0] * cos_ijkl[0];
+                                            cos_2ijkl = cos(2.0 * omega_ijkl);
+                                            cos_ijkl[1] = 1.0 - cos_2ijkl;
+                                            cos_ijkl[2] = 1.0 + cos(3.0 * omega_ijkl);
+                                            // ! [unused] sin_ijkl = sin(omega_ijkl);
+
+                                            PEtors = 0.5 * fn10 * sin_ijk * sin_jkl * (torsion[inxn].V1 * (1.0 + cos_ijkl[0]) + torsion[inxn].V2 * exp_tor1 * cos_ijkl[1] + torsion[inxn].V3 * cos_ijkl[2]);
+                                            PEconj = torsion[inxn].pcot1 * fn12 * (1.0 + (cos_ijkl_sqr - 1.0) * sin_ijk * sin_jkl);
+
+                                            PE[8] = PE[8] + PEtors;
+                                            PE[9] = PE[9] + PEconj;
+                                            // Force coefficient calculation
+                                            // TOrsional term
+                                            CEtors[0] = 0.5 * sin_ijk * sin_jkl * (torsion[inxn].V1 * (1.0 + cos_ijkl[0]) + torsion[inxn].V2 * exp_tor1 * cos_ijkl[1] + torsion[inxn].V3 * cos_ijkl[2]);
+                                            CEtors[1] = -torsion[inxn].ptor2 * fn10 * sin_ijk * sin_jkl * torsion[inxn].V2 * exp_tor1 * btb2 * cos_ijkl[1];
+
+                                            dfn11 = (-torsion[inxn].ptor3 * exp_tor3 + (torsion[inxn].ptor3 * exp_tor3 - torsion[inxn].ptor4 * exp_tor4) * (2.0 + exp_tor3) * exp_tor34_i) * exp_tor34_i;
+
+                                            CEtors[2] = CEtors[1] * dfn11;
+                                            CEtors[3] = CEtors[0] * torsion[inxn].ptor2 * exp_tor2[0] * (1.0 - exp_tor2[1]) * (1.0 - exp_tor2[2]);
+                                            CEtors[4] = CEtors[0] * torsion[inxn].ptor2 * (1.0 - exp_tor2[0]) * exp_tor2[1] * (1.0 - exp_tor2[2]);
+                                            CEtors[5] = CEtors[0] * torsion[inxn].ptor2 * (1.0 - exp_tor2[0]) * (1.0 - exp_tor2[1]) * exp_tor2[2];
+
+                                            cmn = -0.5 * fn10 * (torsion[inxn].V1 * (1.0 + cos_ijkl[0]) + torsion[inxn].V2 * exp_tor1 * cos_ijkl[1] + torsion[inxn].V3 * cos_ijkl[2]);
+
+                                            CEtors[6] = cmn * sin_jkl * tan_ijk_i;
+                                            CEtors[7] = cmn * sin_ijk * tan_jkl_i;
+                                            CEtors[8] = fn10 * sin_ijk * sin_jkl * (0.5 * torsion[inxn].V1 - 2.0 * torsion[inxn].V2 * exp_tor1 * cos_ijkl[0] + 1.5 * torsion[inxn].V3 * (cos_2ijkl + 2.0 * cos_ijkl_sqr));
+
+                                            // Conjugation Energy
+                                            Cconj = -2.0 * torsion[inxn].pcot2 * PEconj;
+                                            CEconj[0] = Cconj * (BOij - 1.5);
+                                            CEconj[1] = Cconj * (BOjk - 1.5);
+                                            CEconj[2] = Cconj * (BOkl - 1.5);
+
+                                            CEconj[3] = -torsion[inxn].pcot1 * fn12 * (cos_ijkl_sqr - 1.0) * tan_ijk_i * sin_jkl;
+                                            CEconj[4] = -torsion[inxn].pcot1 * fn12 * (cos_ijkl_sqr - 1.0) * sin_ijk * tan_jkl_i;
+                                            CEconj[5] = 2.0 * torsion[inxn].pcot1 * fn12 * cos_ijkl[0] * sin_ijk * sin_jkl;
+
+                                            C4body_b = Vector3d(CEconj[0], CEconj[1], CEconj[2]) + Vector3d(CEtors[3], CEtors[4], CEtors[5]); // dBOij, dBOjk, dBOkl
+                                            C4body_a = Vector3d(CEconj[3], CEconj[4], CEconj[5]) + Vector3d(CEtors[6], CEtors[7], CEtors[8]); // ijk, jkl, ijkl
+
+                                            atomData[j].cdbnd = atomData[j].cdbnd + CEtors[2];
+                                            atomData[k].cdbnd = atomData[k].cdbnd + CEtors[2];
+
+                                            for (std::size_t ib = 0; ib < atomData[i].bonds.size(); ++ib)
+                                            {
+                                                if (atomData[i].bonds[ib] == j)
+                                                {
+                                                    ForceB(i, j, ib, C4body_b[0]);
+                                                    break;
+                                                }
+                                            }
+
+                                            // To take care of the derivative of BOpi(j,k), add <Ctors(2)> to 
+                                            // the full BOjk derivative coefficient <C4body_b(2)>, but only pi-bond component
+                                            C4body_b_jk = Vector3d(C4body_b[1], CEtors[1] + C4body_b[1], C4body_b[1]);
+
+                                            for (std::size_t kb = 0; kb < atomData[k].bonds.size(); ++kb)
+                                            {
+                                                if (atomData[k].bonds[kb] == j)
+                                                {
+                                                    ForceBbo(j, k, kb, C4body_b_jk);
+                                                    break;
+                                                }
+                                            }
+
+                                            for (std::size_t lb = 0; lb < atomData[l].bonds.size(); ++lb)
+                                            {
+                                                if (atomData[l].bonds[lb] == k)
+                                                {
+                                                    ForceB(k, l, lb, C4body_b[2]);
+                                                    break;
+                                                }
+                                            }
+
+                                            ForceA3(C4body_a[0], i, j, k, rij, rjk, rij0, rjk0);
+                                            ForceA3(C4body_a[1], j, k, l, rjk, rkl, rjk0, rkl0);
+                                            ForceA4(C4body_a[2], i, j, k, l, rij, rjk, rkl, rij0, rjk0, rkl0);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void ForceD(const std::size_t &i, const Double &coeff)
+    {
+        std::size_t j;
+        Vector3d Cbond, dr, ff;
+
+        for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+        {
+            j = atomData[i].bonds[b];
+            if (j < i)
+                continue;
+            
+            Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
+            dr = atomData[i].position - atomData[j].position;
+            ff = Cbond[0] * atomData[i].dBOp[b] * dr;
+
+            atomData[i].force = atomData[i].force - ff;
+            atomData[j].force = atomData[j].force + ff;
+            
+            Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
+            
+            for (std::size_t ib = 0; ib < atomData[j].bonds.size(); ++ib)
+            {
+                if (atomData[j].bonds[ib] == i)
+                {
+                    Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
+                    break;
+                }
+            }
+
+            atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
+            atomData[j].ccbnd = atomData[i].ccbnd + Cbond[2];
+        }
+    }
+
+    void ForceBondedTerms()
+    {
+        std::size_t j;
+        Vector3d dr, ff;
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            ForceD(i, atomData[i].cdbnd);
+            for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
+            {
+                j = atomData[i].bonds[b];
+                if (j < i)
+                    continue;
+                dr = atomData[i].position - atomData[j].position;
+                ff = atomData[i].ccbnd * atomData[i].dBOp[b] * dr;
+                atomData[i].force = atomData[i].force - ff;
+                atomData[j].force = atomData[j].force + ff;
+            }
+            atomData[i].ccbnd = 0.0;
+        }
+    }
+
     void FORCE()
     {
         // calculate BO prime
@@ -1087,5 +1427,28 @@ namespace Magnum
         Elnpr();
         Ehb();
         E3b();
+        E4b();
+        ForceBondedTerms();
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            astr[0] = astr[0] + atomData[i].position[0] * atomData[i].force[0];
+            astr[1] = astr[1] + atomData[i].position[1] * atomData[i].force[1];
+            astr[2] = astr[2] + atomData[i].position[2] * atomData[i].force[2];
+            astr[3] = astr[3] + atomData[i].position[1] * atomData[i].force[2];
+            astr[4] = astr[4] + atomData[i].position[2] * atomData[i].force[0];
+            astr[5] = astr[5] + atomData[i].position[0] * atomData[i].force[1];
+        }
+    }
+
+    void vkick(const Double &dtf)
+    {
+        std::size_t itype;
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            itype = atomData[i].type;
+            atomData[i].velocity = atomData[i].velocity + dtf * atom[itype].dthm * atomData[i].force;
+        }
     }
 }

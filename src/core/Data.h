@@ -17,6 +17,7 @@
 
 namespace Magnum
 {
+    extern Double dt; /* velocity scaling factor, <dt> one time step */
     struct AtomData
     {
         std::size_t type;
@@ -49,12 +50,18 @@ namespace Magnum
         Double povun2, povun3, povun4, povun5, povun6, povun7, povun8; /* Over / under coordination Energy */
         // ? angle
         Double pval3, pval5;
+        
         Containers::Array<std::size_t> inxn2;
         Containers::Array<Containers::Array<std::size_t>> inxn3;
         Containers::Array<Containers::Array<std::size_t>> inxn3hb;
+        Containers::Array<Containers::Array<Containers::Array<std::size_t>>> inxn4;
+        
         Containers::Array<Double> gamW, gamij, r0s, r0p, r0pp, Dij, alpij, rvdW;
         Double bo131, bo132, bo133;
         std::size_t natoms_per_type;
+        
+        // ? vkick
+        Double dthm, hmas;
     };
     extern Containers::StaticArray<3, Atom> atom; // 3 = nso
 
@@ -86,6 +93,13 @@ namespace Magnum
         Double pcoa1, pcoa2, pcoa3, pcoa4; // Conjugation (3 body) Energy (eq.15)
     };
     extern Containers::StaticArray<6, Angle> angle; // 6 = nvaty;
+
+    struct Torsion
+    {
+        Double ptor1, ptor2, ptor3, ptor4, V1, V2, V3;
+        Double pcot1, pcot2;
+    };
+    extern Containers::StaticArray<6, Torsion> torsion;
     // * Parameters
     extern std::size_t NATOMS;   // Number of Atoms
     extern Float atomRadius;     // rendering
@@ -107,7 +121,7 @@ namespace Magnum
     extern const Double pvdW1;
     extern Double pvdW1h, pvdW1inv;
 
-    extern const Double MAXANGLE, MINANGLE;
+    extern const Double MAXANGLE, MINANGLE, NSMALL;
 
     // ? Coulomb Energy (eq. 22)
     extern const Double Cclmb0_qeq; /* [ev] */
@@ -127,6 +141,7 @@ namespace Magnum
     extern std::size_t nboty;
     extern std::size_t nhbty;
     extern std::size_t nvaty;
+    extern std::size_t ntoty;
 
     //? QEq
     extern Containers::StaticArray<2, Double> Gnew;
@@ -142,6 +157,16 @@ namespace Magnum
     //? Elnpr
     extern Containers::StaticArray<7, Double> CEover;
     extern Containers::StaticArray<6, Double> CEunder;
+
+    //? FORCE
+    extern Containers::StaticArray<6, Double> astr;
+
+    extern const Double UTIME; /* 1 = 1/20.445[ps] = 48.88780[fs] */
+    extern Double Lex_w2, Lex_k;
+    extern std::size_t nstep, qstep;
+
+    extern Double BORDER;
+    extern Double BORDER2;
 }
 
 #endif
