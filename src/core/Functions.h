@@ -41,6 +41,8 @@ namespace Magnum
     // *derivative of <cos_ijk>
     void ForceA3(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const Vector3d &da0, const Vector3d &da1, const Double &da0_0, const Double &da1_0);
 
+    void E3b();
+    
     // ? bo.F90
     void BOCALC();
     void BOPRIM(); /* Calculates the BOp(0:3,i,j) and the deltap(i) */

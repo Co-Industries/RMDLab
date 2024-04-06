@@ -1,6 +1,7 @@
 /* A B C D E F G H I J K L M N O P Q R S T U V W X Y Z */
 
 #include <Magnum/Math/Functions.h>
+#include <Magnum/Math/Constants.h>
 
 #include <Magnum/MeshTools/Compile.h>
 
@@ -14,7 +15,7 @@
 #include "Simulation.h"
 
 namespace Magnum
-{
+{ 
     Simulation::Simulation(Scene3D &_scene, SceneGraph::DrawableGroup3D &_drawables)
     {
         Debug{} << "Simulation has loaded";
@@ -122,19 +123,37 @@ namespace Magnum
             arrayResize(atom[i].alpij, nso);
             arrayResize(atom[i].rvdW, nso);
             arrayResize(atom[i].inxn3hb, nso);
+            arrayResize(atom[i].inxn3, nso);
 
             for (std::size_t j = 0; j < nso; ++j)
             {
                 arrayResize(atom[i].inxn3hb[j], nso);
+                arrayResize(atom[i].inxn3[j], nso);
             }
         }
 
+        // TODO change to loop when there is a input system
         atom[0].inxn2[0] = 1;
         atom[1].inxn2[1] = 2;
+        
         atom[0].inxn2[1] = 3;
         atom[1].inxn2[0] = 3;
 
+
         atom[1].inxn3hb[0][1] = 1;
+
+
+        atom[0].inxn3[0][0] = 1;
+        atom[1].inxn3[1][1] = 2;
+        
+        atom[0].inxn3[1][1] = 3;
+        atom[1].inxn3[1][0] = 3;
+        
+        atom[0].inxn3[1][0] = 4;
+        atom[1].inxn3[0][1] = 5;
+
+        atom[0].inxn3[0][1] = 6;
+        atom[1].inxn3[0][0] = 6;
 
         // atom
         Containers::StaticArray<3, std::string> _name{"H", "O", "X"};
@@ -158,6 +177,8 @@ namespace Magnum
         Containers::StaticArray<3, Double> _mass{1.008, 15.999, 1.0};
         Containers::StaticArray<3, Double> _plp2{0.0, 0.1, 0.0};
         Containers::StaticArray<3, Double> _povun5{0.0, 37.5, 0.0};
+        Containers::StaticArray<3, Double> _Valboc{1.0, 4.0, 4.0};
+        Containers::StaticArray<3, Double> _pval3{4.2733, 2.7952, 2.7466};
 
         // bond
         Containers::StaticArray<3, Double> _pbo1{-0.079, -0.1225, -0.0924};
@@ -181,6 +202,15 @@ namespace Magnum
         Containers::StaticArray<1, Double> _phb2{1.7831};
         Containers::StaticArray<1, Double> _phb3{17.0964};
         Containers::StaticArray<1, Double> _r0hb{2.1653};
+
+        // angle
+        Containers::StaticArray<6, Double> _theta00{0.0, 80.7324, 75.6935, 85.1864, 0.0, 0.0};
+        Containers::StaticArray<6, Double> _pval1{27.9213, 30.4554, 50.0, 8.5843, 11.8475, 6.4269};
+        Containers::StaticArray<6, Double> _pval2{5.8635, 0.9953, 2.0, 2.2985, 2.7571, 2.85};
+        Containers::StaticArray<6, Double> _pcoa1{0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+        Containers::StaticArray<6, Double> _pval7{0.0, 1.631, 1.0, 2.9142, 0.0, 0.0};
+        Containers::StaticArray<6, Double> _ppen1{0.0, 50.0, 0.0, 0.0, 0.0, 0.0};
+        Containers::StaticArray<6, Double> _pval4{1.04, 1.0783, 1.168, 2.0521, 2.9, 1.0772};
 
         // ? change atom type values
         for (std::size_t i = 0; i < nso; ++i)
@@ -214,6 +244,13 @@ namespace Magnum
             atom[i].povun6 = 1.0588; // vpar(7)
             atom[i].povun7 = 12.1176; // vpar(9)
             atom[i].povun8 = 13.3056; // vpar(10)
+            atom[i].Valboc = _Valboc[i];
+            
+            if (atom[i].mass < 21.0 && atom[i].Valboc != atom[i].Valval)
+                atom[i].Valboc = atom[i].Valval;
+            atom[i].Valangle = atom[i].Valboc;
+
+            atom[i].pval3 = _pval3[i];
         }
 
         for (std::size_t i = 0; i < nboty; ++i)
@@ -234,13 +271,38 @@ namespace Magnum
             bond[i].povun1 = _povun1[i];
         }
 
-        for(std::size_t i = 0; i < nhbty; ++i)
+        for (std::size_t i = 0; i < nhbty; ++i)
         {
             h_bond[i].phb1 = _phb1[i];
             h_bond[i].phb2 = _phb2[i];
             h_bond[i].phb3 = _phb3[i];      
             h_bond[i].r0hb = _r0hb[i]; 
         }
+
+        for (std::size_t i = 0; i < nvaty; ++i)
+        {
+            angle[i].theta00 = _theta00[i];
+            angle[i].pval1 = _pval1[i];
+            angle[i].pval2 = _pval2[i];
+            angle[i].pcoa1 = _pcoa1[i];
+            angle[i].pval7 = _pval7[i];
+            angle[i].ppen1 = _ppen1[i];
+            angle[i].pval4 = _pval4[i];
+            // Terms that don't depend on atom types
+            angle[i].pval6 = 33.8667; // vpar(15)
+            angle[i].pval8 = 1.8512; // vpar(34)
+            angle[i].pval9 = 1.0563; // vpar(17)
+            angle[i].pval10 = 2.0384; // vpar(18)
+            angle[i].ppen2 = 6.929; // vpar(20)
+            angle[i].ppen3 = 0.3989; // vpar(21)
+            angle[i].ppen4 = 3.9954; // vpar(22)
+            angle[i].pcoa2 = 26.5405; // vpar(3)
+            angle[i].pcoa3 = 2.6962; // vpar(39)
+            angle[i].pcoa4 = 2.1365; // vpar(31)
+            // convert from degrees to radians:
+            angle[i].theta00 = (Constantsd::pi() / 180.0) * angle[i].theta00;
+        }
+
         for (std::size_t i = 0; i < nso; ++i)
         {
             for (std::size_t j = 0; j < nso; ++j)
@@ -328,11 +390,19 @@ namespace Magnum
         pvdW1h = 0.5 * pvdW1;
         pvdW1inv = 1.0 / pvdW1;
 
+        std::size_t inxn;
+
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            const std::size_t itype = atomData[i].type;
+            atom[itype].natoms_per_type = atom[itype].natoms_per_type + 1;
+        }
+
         for (std::size_t i = 0; i < nso; ++i)
         {
             for (std::size_t j = 0; j < nso; ++j)
             {
-                std::size_t inxn = atom[i].inxn2[j];
+                inxn = atom[i].inxn2[j];
                 // * inxn2 doesnt use 0, thats the "null" value, any table using it should have +1 value
                 if (inxn == 0)
                     continue;
@@ -390,6 +460,22 @@ namespace Magnum
                 }
                 bond[inxn].rc = dr;
                 bond[inxn].rc2 = dr * dr;
+            }
+        }
+
+        for (std::size_t itype = 0; itype < nso; ++itype)
+        {
+            if (atom[itype].natoms_per_type == 0)
+            {
+                for (std::size_t jtype = 0; jtype < nso; ++jtype)
+                {
+                    inxn = atom[itype].inxn2[jtype];
+                    if (inxn != 0)
+                        bond[inxn - 1].rc = 0.0;
+                    inxn = atom[jtype].inxn2[itype];
+                    if (inxn != 0)
+                        bond[inxn - 1].rc = 0.0;
+                }
             }
         }
     }
@@ -510,6 +596,7 @@ namespace Magnum
             {
                 const Vector3d pospq = ppos - atomData[j].position; // qpos
                 const Float dpq2 = (pospq * 0.5).dot();
+                const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
 
                 if (dpq2 < rctap2)
                 {
@@ -522,13 +609,14 @@ namespace Magnum
                     atomInstanceData[i].color.g() = atomInstanceData[i].color.g() + 0.4f;
                     atomInstanceData[j].color.g() = atomInstanceData[j].color.g() + 0.4f;
 
-                    const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
-                    if (dpq2 < Float(bond[inxn].rc2))
-                    {
-                        arrayAppend(atomData[i].bonds, InPlaceInit, j);
-                        arrayAppend(atomData[j].bonds, InPlaceInit, i);
-                    }
+                    
                 }
+                if (dpq2 < Float(bond[inxn].rc2))
+                {
+                    arrayAppend(atomData[i].bonds, InPlaceInit, j);
+                    arrayAppend(atomData[j].bonds, InPlaceInit, i);
+                }
+                
             }
         }
     }

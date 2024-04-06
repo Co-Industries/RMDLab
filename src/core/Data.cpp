@@ -8,6 +8,7 @@ namespace Magnum
     Containers::StaticArray<3, Atom> atom;
     Containers::StaticArray<3, Bond> bond;
     Containers::StaticArray<1, H_Bond> h_bond;
+    Containers::StaticArray<6, Angle> angle;
 
     // * Parameters
     std::size_t NATOMS = 0;
@@ -23,6 +24,7 @@ namespace Magnum
     const Float rctap0 = 10.0;
     const Double MINBOSIG = 1.0e-3;
     const Double MINBO0 = 1.0e-4;
+    const Double cutof2_esub = 1.0e-4;
     const Double cutof2_bo = 1.0e-3;
     const Double vpar30 = 0.1;
     const Double vpar1 = 50.0, vpar2 = 9.5469;
@@ -47,6 +49,7 @@ namespace Magnum
     std::size_t nso = 3;
     std::size_t nboty = 3;
     std::size_t nhbty = 1;
+    std::size_t nvaty = 6;
 
     // ? QEq
     Containers::StaticArray<2, Double> Gnew;

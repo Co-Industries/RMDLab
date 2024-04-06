@@ -42,15 +42,19 @@ namespace Magnum
     {
         std::string name;
         Color3 color;
-        Double vop, gam, eta, chi, rat, rapt, vnq, Val;
+        Double vop, gam, eta, chi, rat, rapt, vnq, Val, Valangle, Valboc;
         Double Valval, eps, alf, rvdw1;
         // ? Elnpr()
         Double Vale, plp1, plp2, nlpopt, mass;
         Double povun2, povun3, povun4, povun5, povun6, povun7, povun8; /* Over / under coordination Energy */
+        // ? angle
+        Double pval3, pval5;
         Containers::Array<std::size_t> inxn2;
+        Containers::Array<Containers::Array<std::size_t>> inxn3;
         Containers::Array<Containers::Array<std::size_t>> inxn3hb;
         Containers::Array<Double> gamW, gamij, r0s, r0p, r0pp, Dij, alpij, rvdW;
         Double bo131, bo132, bo133;
+        std::size_t natoms_per_type;
     };
     extern Containers::StaticArray<3, Atom> atom; // 3 = nso
 
@@ -73,6 +77,15 @@ namespace Magnum
         Double r0hb, phb1, phb2, phb3; /* Hydrogren Bond Energy (eq. 18) */
     };
     extern Containers::StaticArray<1, H_Bond> h_bond; // 1 = nhbty
+
+    struct Angle
+    {
+        Double pval1, pval2, pval3, pval4, pval6, pval7, pval8, pval9, pval10; // Valency Angle Energy (eq. 13a-g)
+        Double theta00;
+        Double ppen1, ppen2, ppen3, ppen4; // Penalty Energy (eq. 14ab)
+        Double pcoa1, pcoa2, pcoa3, pcoa4; // Conjugation (3 body) Energy (eq.15)
+    };
+    extern Containers::StaticArray<6, Angle> angle; // 6 = nvaty;
     // * Parameters
     extern std::size_t NATOMS;   // Number of Atoms
     extern Float atomRadius;     // rendering
@@ -86,6 +99,7 @@ namespace Magnum
     extern const std::size_t NTABLE;
     extern const Double MINBOSIG; /* <minBOsig>: criterion to decide <rc> */
     extern const Double MINBO0; /* <minBO0>: cutoff bond order  */
+    extern const Double cutof2_esub;
     extern const Double cutof2_bo;
     extern const Double vpar30;       /* Cutoff for bond order (*100) */
     extern const Double vpar1, vpar2; /* Overcoordination parameter [ffield]*/
@@ -112,6 +126,7 @@ namespace Magnum
     extern std::size_t nso;
     extern std::size_t nboty;
     extern std::size_t nhbty;
+    extern std::size_t nvaty;
 
     //? QEq
     extern Containers::StaticArray<2, Double> Gnew;
