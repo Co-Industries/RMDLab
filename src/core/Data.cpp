@@ -42,6 +42,8 @@ namespace Magnum
     const Double Cclmb0_qeq = 14.4;
     const Double Cclmb0 = 332.0638;
     const Double CEchrge = 23.02;
+    Double rchb = 10.0;
+    Double rchb2 = rchb * rchb;
 
     Float rctap, rctap2;
     Float UDR, UDRi;
@@ -76,8 +78,10 @@ namespace Magnum
     const Double UTIME = 1.0e3 / 20.455;
     Double Lex_w2 = 1.0;
     Double Lex_k = 2.0;
-    std::size_t nstep = 0, qstep = 1;
+    std::size_t nstep = 0, qstep = 2;
 
     Double BORDER = 100.0;
     Double BORDER2 = 2 * BORDER;
+
+    Double BO_MAX = 1.0;
 }

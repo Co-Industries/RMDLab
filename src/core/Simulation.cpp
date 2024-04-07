@@ -57,9 +57,15 @@ namespace Magnum
     void Simulation::RUN(const SimulationParameters &parameters)
     {
         //? Parameters
+        nstep = 0;
         NATOMS = parameters.atomCount;
         atomRadius = parameters.atomRadius;
         randomVelocity = parameters.randomVelocity;
+        dt = parameters.timestep;
+        BORDER = parameters.border;
+        BORDER2 = BORDER * 2.0;
+
+        //NATOMS = 24;
 
         Debug{} << "Simulation running" << NATOMS;
         running = true;
@@ -70,24 +76,42 @@ namespace Magnum
         GETPARAMS();
         INITSYSTEM();
 
+        //Containers::StaticArray<24, Vector3d> _position{Vector3d(2.377, 1.372, 6.413), Vector3d(2.377, 1.372, 5.596), Vector3d(3.114, 1.795, 5.319), Vector3d(0.000, 3.594, 4.966), Vector3d(0.000, 2.745, 4.688), Vector3d(0.734, 2.318, 4.966), Vector3d(0.000, 5.489, 6.413), Vector3d(0.000, 5.489, 5.596), Vector3d(0.737, 5.912, 5.319), Vector3d(4.020, 2.318, 1.646), Vector3d(4.754, 2.745, 1.923), Vector3d(4.754, 2.745, 2.740), Vector3d(2.377, 6.862, 2.740), Vector3d(2.377, 6.862, 1.923), Vector3d(1.643, 6.435, 1.646), Vector3d(2.375, 7.711, 4.966), Vector3d(2.377, 6.862, 4.688), Vector3d(3.111, 6.435, 4.966), Vector3d(0.000, 4.640, 1.293), Vector3d(0.000, 5.489, 1.015), Vector3d(4.017, 5.912, 1.293), Vector3d(2.375, 0.523, 1.293), Vector3d(2.377, 1.372, 1.015), Vector3d(1.640, 1.795, 1.293)};
+        ////Containers::StaticArray<2, Vector3d> _velocity{Vector3d(randomVelocity, 0.0, 0.0), Vector3d(-randomVelocity, 0.0, 0.0)};
+        //Containers::StaticArray<24, std::size_t> _type{0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0};
+        //Containers::StaticArray<24, Double> _q{0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5, 0.5, -1.0, 0.5};
+        //for (std::size_t i = 0; i < NATOMS; ++i)
+        //{
+        //    atomData[i].position = _position[i];
+        //    //atomData[i].velocity = _velocity[i];
+        //    //atomData[i].q = _q[i];
+        //    atomData[i].type = _type[i];
+        //    atomFloatPositions[i] = Vector3(atomData[i].position);
+        //    atomInstanceData[i].transformationMatrix = Matrix4::translation(atomFloatPositions[i]) * Matrix4::scaling(Vector3{atomRadius});
+        //    atomInstanceData[i].normalMatrix = atomInstanceData[i].transformationMatrix.normalMatrix();
+        //    atomInstanceData[i].color = atom[atomData[i].type].color;
+        //}
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
             const Vector3d tempPosition = Vector3d(std::rand(), std::rand(), std::rand()) / Double(RAND_MAX);
             const Vector3d tempVelocity = Vector3d(std::rand(), std::rand(), std::rand()) / Double(RAND_MAX);
             const std::size_t tempType = std::rand() / ((RAND_MAX + 1u) / 2); // 0 or 1
-
-            atomData[i].position = tempPosition * 200.0 - Vector3d(100.0);
-            // atomData[i].position.y() *= 0.5;
-            atomData[i].velocity = (tempVelocity * 200.0 - Vector3d{100.0}).resized(randomVelocity);
+            atomData[i].position = tempPosition * BORDER2 - Vector3d(BORDER);
+            atomData[i].position.y() *= 0.5;
+            atomData[i].velocity = (tempVelocity * BORDER2 - Vector3d{BORDER}).resized(randomVelocity);
             atomData[i].type = tempType;
+            //if (tempType == 0)
+            //    atomData[i].q = 1.0;
+            //if (tempType == 1)
+            //    atomData[i].q = -2.0;
             atomFloatPositions[i] = Vector3(atomData[i].position);
-
             atomInstanceData[i].transformationMatrix = Matrix4::translation(atomFloatPositions[i]) * Matrix4::scaling(Vector3{atomRadius});
             atomInstanceData[i].normalMatrix = atomInstanceData[i].transformationMatrix.normalMatrix();
             atomInstanceData[i].color = atom[atomData[i].type].color;
         }
 
         atomMesh.setInstanceCount(atomInstanceData.size());
+        octree.emplace(Vector3{0}, Float(BORDER), rctap0);
         octree->setPoints(atomFloatPositions);
         octree->build();
         Debug{} << " [Octree] Allocated nodes:" << octree->numAllocatedNodes();
@@ -163,9 +187,9 @@ namespace Magnum
         Containers::StaticArray<3, std::string> _name{"H", "O", "X"};
         Containers::StaticArray<3, Color3> _color{Color3::fromSrgbInt(0xffffff), Color3::fromSrgbInt(0xff0d0d), Color3::fromSrgbInt(0x000000)};
         Containers::StaticArray<3, Double> _vop{33.2894, 11.7301, 2.5};
-        Containers::StaticArray<3, Double> _gam{0.82, 1.095, 1.0};
-        Containers::StaticArray<3, Double> _eta{9.6093, 1.0548, -0.1};
-        Containers::StaticArray<3, Double> _chi{3.7248, 8.5, 8.50};
+        Containers::StaticArray<3, Double> _gam{0.8203, 1.095, 1.0};
+        Containers::StaticArray<3, Double> _eta{9.6093, 8.3134, 1.5};
+        Containers::StaticArray<3, Double> _chi{3.7248, 8.5, 8.5};
         Containers::StaticArray<3, Double> _rat{0.893, 1.245, -0.1};
         Containers::StaticArray<3, Double> _rapt{-0.1, 1.0548, -0.1};
         Containers::StaticArray<3, Double> _vnq{-0.1, 0.9049, -0.1};
@@ -183,6 +207,7 @@ namespace Magnum
         Containers::StaticArray<3, Double> _povun5{0.0, 37.5, 0.0};
         Containers::StaticArray<3, Double> _Valboc{1.0, 4.0, 4.0};
         Containers::StaticArray<3, Double> _pval3{4.2733, 2.7952, 2.7466};
+        Containers::StaticArray<3, Double> _pval5{2.8793, 2.9225, 2.8793};
 
         // bond
         Containers::StaticArray<3, Double> _pbo1{-0.079, -0.1225, -0.0924};
@@ -234,7 +259,7 @@ namespace Magnum
             atom[i].color = _color[i];
             atom[i].vop = _vop[i];
             atom[i].gam = _gam[i];
-            atom[i].eta = _eta[i];
+            atom[i].eta = 2.0 * _eta[i]; // ! for param.F90
             atom[i].chi = _chi[i];
             atom[i].rat = _rat[i];
             atom[i].rapt = _rapt[i];
@@ -266,6 +291,7 @@ namespace Magnum
             atom[i].Valangle = atom[i].Valboc;
 
             atom[i].pval3 = _pval3[i];
+            atom[i].pval5 = _pval5[i];
         }
 
         for (std::size_t i = 0; i < nboty; ++i)
@@ -483,7 +509,7 @@ namespace Magnum
 
                 for (std::size_t k = 0; k < NTABLE + 1; ++k)
                 {
-                    Double dr2 = UDR * k;
+                    Double dr2 = UDR * k + 1;
                     Double dr1 = sqrt(dr2);
 
                     Double dr3 = dr1 * dr2;
@@ -512,6 +538,8 @@ namespace Magnum
                     TBL_Evdw_d[k][inxn] = Dij0 * (dTap * (exp1 - 2.0 * exp2) - Tap * (alphaij / rvdW0) * (exp1 - exp2) * dfn13);
                     TBL_Eclmb_d[k][inxn] = Cclmb0 * dr3gamij * (dTap - pow(dr3gamij, 3) * Tap * dr1);
 
+                    //Debug{} << TBL_Evdw_d[k][inxn] << TBL_Eclmb_d[k][inxn];
+
                     // TODO if(isLG) then
                 }
 
@@ -536,10 +564,16 @@ namespace Magnum
                 {
                     inxn = atom[itype].inxn2[jtype];
                     if (inxn != 0)
+                    {
                         bond[inxn - 1].rc = 0.0;
+                        bond[inxn - 1].rc2 = 0.0;
+                    }
                     inxn = atom[jtype].inxn2[itype];
                     if (inxn != 0)
+                    {
                         bond[inxn - 1].rc = 0.0;
+                        bond[inxn - 1].rc2 = 0.0;
+                    }
                 }
             }
         }
@@ -547,7 +581,7 @@ namespace Magnum
 
     void Simulation::UPDATE_ATOMS()
     {
-        std::size_t itype;
+        //std::size_t itype;
 
         vkick(1.0);
         for (std::size_t i = 0; i < NATOMS; ++i)
@@ -560,6 +594,10 @@ namespace Magnum
             Vector3d pos = atomData[i].position + atomData[i].velocity * dt;
             for (std::size_t j = 0; j < 3; ++j)
             {
+                // TODO better system for border
+                //if (pos[j] < -BORDER || pos[j] > BORDER)
+                //   atomData[i].velocity = -atomData[i].velocity;
+                //pos[j] = Math::clamp(pos[j], -BORDER, BORDER);
                 if (pos[j] < -BORDER)
                 {
                     pos[j] = pos[j] + BORDER2;
@@ -568,6 +606,7 @@ namespace Magnum
                 {
                     pos[j] = pos[j] - BORDER2;
                 }
+                //pos[j] = Math::clamp(pos[j], -BORDER, BORDER);
             }
 
             atomData[i].position = pos;
@@ -575,22 +614,23 @@ namespace Magnum
             atomInstanceData[i].transformationMatrix.translation() = atomFloatPositions[i];
         }
         atomInstanceBuffer.setData(atomInstanceData, GL::BufferUsage::DynamicDraw);
+        UPDATE_OCTREE();
 
         if (nstep % qstep == 0)
             QEq();
         FORCE();
 
-        for (std::size_t i = 0; i < NATOMS; ++i)
-        {
-            itype = atomData[i].type;
-            astr[0] = astr[0] + atomData[i].velocity[0] * atomData[i].velocity[0] * atom[itype].mass;
-            astr[1] = astr[1] + atomData[i].velocity[1] * atomData[i].velocity[1] * atom[itype].mass;
-            astr[2] = astr[2] + atomData[i].velocity[2] * atomData[i].velocity[2] * atom[itype].mass;
-            astr[3] = astr[3] + atomData[i].velocity[1] * atomData[i].velocity[2] * atom[itype].mass;
-            astr[4] = astr[4] + atomData[i].velocity[2] * atomData[i].velocity[0] * atom[itype].mass;
-            astr[5] = astr[5] + atomData[i].velocity[0] * atomData[i].velocity[1] * atom[itype].mass;
-        }
-        //vkick(1.0);
+        //for (std::size_t i = 0; i < NATOMS; ++i)
+        //{
+        //    itype = atomData[i].type;
+        //    astr[0] = astr[0] + atomData[i].velocity[0] * atomData[i].velocity[0] * atom[itype].mass;
+        //    astr[1] = astr[1] + atomData[i].velocity[1] * atomData[i].velocity[1] * atom[itype].mass;
+        //    astr[2] = astr[2] + atomData[i].velocity[2] * atomData[i].velocity[2] * atom[itype].mass;
+        //    astr[3] = astr[3] + atomData[i].velocity[1] * atomData[i].velocity[2] * atom[itype].mass;
+        //    astr[4] = astr[4] + atomData[i].velocity[2] * atomData[i].velocity[0] * atom[itype].mass;
+        //    astr[5] = astr[5] + atomData[i].velocity[0] * atomData[i].velocity[1] * atom[itype].mass;
+        //}
+        vkick(1.0);
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
@@ -691,7 +731,7 @@ namespace Magnum
             if (j > i)
             {
                 const Vector3d pospq = ppos - atomData[j].position; // qpos
-                const Float dpq2 = (pospq * 0.5).dot();
+                const Float dpq2 = pospq.dot();
                 const std::size_t inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
 
                 if (dpq2 < rctap2)
@@ -702,13 +742,16 @@ namespace Magnum
                     arrayAppend(atomData[i].dpq2, InPlaceInit, dpq2);
                     arrayAppend(atomData[j].dpq2, InPlaceInit, dpq2);
 
-                    atomInstanceData[i].color.g() = atomInstanceData[i].color.g() + 0.4f;
-                    atomInstanceData[j].color.g() = atomInstanceData[j].color.g() + 0.4f;
+                    //atomInstanceData[i].color.g() = atomInstanceData[i].color.g() + 0.4f * (10.0f / dpq2);
+                    //atomInstanceData[j].color.g() = atomInstanceData[j].color.g() + 0.4f * (10.0f / dpq2);
                 }
                 if (dpq2 < Float(bond[inxn].rc2))
                 {
                     arrayAppend(atomData[i].bonds, InPlaceInit, j);
                     arrayAppend(atomData[j].bonds, InPlaceInit, i);
+
+                    atomInstanceData[i].color.b() = atomInstanceData[i].color.b() + 0.8f * (10.0f / dpq2);
+                    atomInstanceData[j].color.b() = atomInstanceData[j].color.b() + 0.8f * (10.0f / dpq2);
                 }
             }
         }

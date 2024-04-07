@@ -63,13 +63,15 @@ namespace Magnum
             atomData[i].qt = 0.0;
             // TODO Implement case(2) Extender Lagrangian method (prob better performance) only works for a few atoms i guess
 
+            gssum = 0.0, gtsum = 0.0;
+
             for (std::size_t n = 0; n < atomData[i].neighbors.size(); ++n)
             {
                 j = atomData[i].neighbors[n];
 
                 // ? qeq_initialize()
-                // if (j < i)
-                //    break;
+                //if (j < i)
+                //  continue;
 
                 itb = Int(atomData[i].dpq2[n] * Double(UDRi));
                 itb1 = itb + 1;
@@ -89,8 +91,8 @@ namespace Magnum
             }
             itype = atomData[i].type;
             _eta = atom[itype].eta;
-            atomData[i].gs = atom[itype].chi - _eta * atomData[i].qs - gssum;
-            atomData[i].gt = 1.0 - _eta * atomData[i].qt - gtsum;
+            atomData[i].gs = -atom[itype].chi - _eta * atomData[i].qs - gssum;
+            atomData[i].gt = -1.0 - _eta * atomData[i].qt - gtsum;
 
             atomData[i].hs = atomData[i].gs;
             atomData[i].ht = atomData[i].gt;
@@ -118,8 +120,8 @@ namespace Magnum
                 {
                     j = atomData[i].neighbors[n];
 
-                    // if (j < i)
-                    //     break;
+                    //if (j < i)
+                    //    continue;
 
                     _hshs += atomData[i].hessian[n] * atomData[j].hs;
                     _hsht += atomData[i].hessian[n] * atomData[j].ht;
@@ -164,8 +166,7 @@ namespace Magnum
 
             mu = ssum / tsum;
 
-            gssum = 0.0;
-            gtsum = 0.0;
+            gssum = 0.0, gtsum = 0.0;
 
             for (std::size_t i = 0; i < NATOMS; ++i)
             {
@@ -175,16 +176,16 @@ namespace Magnum
                     j = atomData[i].neighbors[n];
 
                     // ? get_gradient [Gnew]
-                    // if (j < i)
-                    //    break;
+                    //if (j < i)
+                    //   continue;
 
                     gssum += atomData[i].hessian[n] * atomData[j].qs;
                     gtsum += atomData[i].hessian[n] * atomData[j].qt;
                 }
                 itype = atomData[i].type;
                 _eta = atom[itype].eta;
-                atomData[i].gs = atom[itype].chi - _eta * atomData[i].qs - gssum;
-                atomData[i].gt = 1.0 - _eta * atomData[i].qt - gtsum;
+                atomData[i].gs = -atom[itype].chi - _eta * atomData[i].qs - gssum;
+                atomData[i].gt = -1.0 - _eta * atomData[i].qt - gtsum;
             }
 
             const Containers::StaticArray<2, Double> Gold(Gnew);
@@ -213,9 +214,9 @@ namespace Magnum
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
-
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
+                //Debug{} << atomData[i].bonds;
                 j = atomData[i].bonds[b];
 
                 if (j < i)
@@ -224,16 +225,31 @@ namespace Magnum
                 inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
                 dr = atomData[i].position - atomData[j].position;
                 // TODO idk if 0.5 * dr is correct.
-                dr2 = (0.5 * dr).dot();
+                dr2 = dr.dot();
+                if (!std::isnormal(dr2))
+                    dr2 = 0.00000000001;
 
-                arg_BOpij[0] = bond[inxn].cBOp1 * pow(Double(dr2), bond[inxn].pbo2h);
-                arg_BOpij[1] = bond[inxn].cBOp3 * pow(Double(dr2), bond[inxn].pbo4h);
-                arg_BOpij[2] = bond[inxn].cBOp5 * pow(Double(dr2), bond[inxn].pbo6h);
+                //if (dr2 > bond[inxn].rc2)
+                //    continue;
+
+                arg_BOpij[0] = bond[inxn].cBOp1 * pow(dr2, bond[inxn].pbo2h);
+                arg_BOpij[1] = bond[inxn].cBOp3 * pow(dr2, bond[inxn].pbo4h);
+                arg_BOpij[2] = bond[inxn].cBOp5 * pow(dr2, bond[inxn].pbo6h);
+
+                
+                //Debug{} << dr << dr2 << pow(dr2, bond[inxn].pbo2h) << pow(dr2, bond[inxn].pbo4h) << pow(dr2, bond[inxn].pbo6h);
 
                 for (std::size_t k = 0; k < 3; ++k)
                 {
                     _bo[k] = bond[inxn].swh[k] * exp(arg_BOpij[k]);
+                    if (_bo[k] > BO_MAX)
+                        _bo[k] = BO_MAX;
+                    //Debug{} << _bo[k] << exp(arg_BOpij[k]);
                 }
+                
+                //Debug{} << arg_BOpij;
+
+                //Debug{} << arg_BOpij;
 
                 // Small modification exists in sigma-bond prime, see reac.f line 4444. sigma-bond prime is multiplied by
                 // (1.d0 + 1.d-4) here.  Later in original reaxff code, sigma-bond prime is subtracted by
@@ -269,6 +285,7 @@ namespace Magnum
                     arrayAppend(atomData[j].bo, InPlaceInit, _bo);
                     atomData[i].deltap[0] += _bo_sum;
                     atomData[j].deltap[0] += _bo_sum;
+                    //Debug{} << _bo << _dln_BOp << dBOp << _bo_sum;
                 }
                 else
                 {
@@ -281,13 +298,20 @@ namespace Magnum
                     arrayAppend(atomData[i].bo_sum, InPlaceInit, 0.0);
                     arrayAppend(atomData[j].bo_sum, InPlaceInit, 0.0);
                 }
+                //Debug{} << dr2 << pow(dr2, bond[inxn].pbo2h) << pow(dr2, bond[inxn].pbo4h) << pow(dr2, bond[inxn].pbo6h);
+                //Debug{} << "<arg_BOpij>" << arg_BOpij;
+                //Debug{} << "<dln_BOp>" << atomData[i].dln_BOp << atomData[j].dln_BOp;
+                //Debug{} << "<dBOp>" << atomData[i].dBOp << atomData[j].dBOp;
+                //Debug{} << "<bo>" << atomData[i].bo << atomData[j].bo;
+                //Debug{} << "<bo_sum>" << atomData[i].bo_sum << atomData[j].bo_sum;
+                //Debug{} << "<deltap>" << atomData[i].deltap << atomData[j].deltap;
             }
         }
     }
 
     void BOFULL()
     {
-        std::size_t j, inxn;
+        std::size_t j, jtype, itype, inxn;
         Double exppboc1i, exppboc2i, exppboc1j, exppboc2j;
         Double fn1, fn2, fn3, fn23, fn4, fn5, fn45, fn145, fn1145;
         Double BOp0, BOpsqr, _BO_sum, BOpij_2, _BO_nsum;
@@ -300,17 +324,15 @@ namespace Magnum
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
-            atomData[i].deltap[1] = atomData[i].deltap[0] + atom[atomData[i].type].Val - atom[atomData[i].type].Valval;
+            itype = atomData[i].type;
+            atomData[i].deltap[1] = atomData[i].deltap[0] + atom[itype].Val - atom[itype].Valval;
         }
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
+            itype = atomData[i].type;
             exppboc1i = exp(-vpar1 * atomData[i].deltap[0]);
             exppboc2i = exp(-vpar2 * atomData[i].deltap[0]);
-
-            fn2 = exppboc1i + exppboc1j;
-            fn3 = (-1.0 / vpar2) * log(0.5 * (exppboc2i + exppboc2j));
-            fn23 = fn2 + fn3;
 
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
@@ -320,20 +342,26 @@ namespace Magnum
                 if (j < i)
                     continue;
 
+                jtype = atomData[j].type;
+
                 exppboc1j = exp(-vpar1 * atomData[j].deltap[0]);
                 exppboc2j = exp(-vpar2 * atomData[j].deltap[0]);
 
-                inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
+                fn2 = exppboc1i + exppboc1j;
+                fn3 = (-1.0 / vpar2) * log(0.5 * (exppboc2i + exppboc2j));
+                fn23 = fn2 + fn3;
+
+                inxn = atom[itype].inxn2[jtype] - 1;
                 BOp0 = atomData[i].bo_sum[b];
 
-                fn1 = 0.5 * ((atom[atomData[i].type].Val + fn2) / (atom[atomData[i].type].Val + fn23) + (atom[atomData[j].type].Val + fn2) / (atom[atomData[j].type].Val + fn23));
+                fn1 = 0.5 * ((atom[itype].Val + fn2) / (atom[itype].Val + fn23) + (atom[jtype].Val + fn2) / (atom[jtype].Val + fn23));
                 // TODO ovc is either 1 or 0, so this doesn't make any sense. Probably some scaling i have missed or Fortran might not have booleans
                 if (bond[inxn].ovc < 1.0e-3)
                     fn1 = 1.0;
 
                 BOpsqr = BOp0 * BOp0;
-                fn4 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[i].deltap[1])) + bond[inxn].pboc5);
-                fn5 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[j].deltap[1])) + bond[inxn].pboc5);
+                fn4 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[i].deltap[1]) + bond[inxn].pboc5));
+                fn5 = 1.0 / (1.0 + exp(-bond[inxn].pboc3 * (bond[inxn].pboc4 * BOpsqr - atomData[j].deltap[1]) + bond[inxn].pboc5));
                 if (bond[inxn].v13cor < 1.0e-3)
                 {
                     fn4 = 1.0;
@@ -367,8 +395,8 @@ namespace Magnum
                 // all following comes from Coding Methodology section:
                 // part 1:
 
-                u1ij = atom[atomData[i].type].Val + fn23;
-                u1ji = atom[atomData[j].type].Val + fn23;
+                u1ij = atom[itype].Val + fn23;
+                u1ji = atom[jtype].Val + fn23;
 
                 // part 2:
                 u1ij_inv2 = 1.0 / (u1ij * u1ij);
@@ -427,6 +455,9 @@ namespace Magnum
                 arrayAppend(atomData[j].A1, InPlaceInit, atomData[i].A1[atomData[i].A1.size() - 1]);
                 arrayAppend(atomData[j].A2, InPlaceInit, Cf1ji_div1 + (bond[inxn].pboc3 * Cf45ji * fn45_inv));
                 arrayAppend(atomData[j].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ji_div1);
+
+                //Debug{} << atomData[i].A0 << atomData[i].A1 << atomData[i].A2 << atomData[i].A3;
+                //Debug{} << atomData[i].bo << atomData[i].bo_sum << atomData[i].dln_BOp << atomData[i].dBOp << atomData[i].deltap;
             }
         }
 
@@ -435,6 +466,8 @@ namespace Magnum
             _BO_nsum = 0.0;
             for (std::size_t b = 0; b < atomData[i].BO_sum.size(); ++b)
             {
+                //if (atomData[i].bonds[b] < i)
+                //    continue;
                 _BO_nsum += atomData[i].BO_sum[b];
             }
             atomData[i].delta = -atom[atomData[i].type].Val - atom[atomData[i].type].Valval + _BO_nsum;
@@ -443,8 +476,8 @@ namespace Magnum
 
     void ENbond()
     {
-        std::size_t j, itb, itb1, inxn, itype;
-        Double drtb, qij;
+        std::size_t j, itb, itb1, inxn, itype, jtype;
+        Double drtb, qij, dr2;
         Double PEvdw, PEclmb;
         Double CEvdw, CEclmb;
         Vector3d dr, ff;
@@ -461,12 +494,23 @@ namespace Magnum
                 if (j < i)
                     continue;
 
+                dr = atomData[i].position - atomData[j].position;
+                dr2 = dr.dot();
+                if (!std::isnormal(dr2)) {
+                    dr = Vector3d{0.000000001};
+                    dr2 = 0.00000000001;
+                }
+
+                if (dr2 > bond[inxn].rc2)
+                    continue;
+
+                jtype = atomData[j].type;
                 itb = Int(atomData[i].dpq2[n] * Double(UDRi));
                 itb1 = itb + 1;
                 drtb = atomData[i].dpq2[n] - itb * Double(UDR);
                 drtb = drtb * Double(UDRi);
 
-                inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
+                inxn = atom[itype].inxn2[jtype] - 1;
 
                 // van der Waals: TBL_Evdw[0] = TBL_Evdw_p ; TBL_Evdw[1] = TBL_Evdw_d
                 PEvdw = (1.0 - drtb) * TBL_Evdw_p[itb][inxn] + drtb * TBL_Evdw_p[itb1][inxn];
@@ -482,11 +526,10 @@ namespace Magnum
                 PE[11] = PE[11] + PEvdw;
                 PE[12] = PE[12] + PEclmb;
 
-                dr = atomData[i].position - atomData[j].position;
                 ff = (CEvdw + CEclmb) * dr;
-
-                atomData[i].force = atomData[i].force - ff;
-                atomData[j].force = atomData[j].force + ff;
+                
+                atomData[i].force -= ff;
+                atomData[j].force += ff;
             }
         }
     }
@@ -501,12 +544,17 @@ namespace Magnum
         Cbond[0] = cf[0] * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]) * atomData[i].dBOp[b] +
                    cf[1] * atomData[i].BO[b][1] * (atomData[i].dln_BOp[b][1] + atomData[i].A1[b] * atomData[i].dBOp[b]) +
                    cf[2] * atomData[i].BO[b][2] * (atomData[i].dln_BOp[b][2] + atomData[i].A1[b] * atomData[i].dBOp[b]);
-
+        
         dr = atomData[i].position - atomData[j].position;
+        if (!std::isnormal(dr.dot()))
+            dr = Vector3d{0.00000001};
+        
         ff = Cbond[0] * dr;
 
-        atomData[i].force = atomData[i].force - ff;
-        atomData[j].force = atomData[j].force + ff;
+        
+
+        atomData[i].force -= ff;
+        atomData[j].force += ff;
 
         // * 1st element is "full"-bond order.
         cBO = Vector3d(cf[0] * atomData[i].BO_sum[b], cf[1] * atomData[i].BO[b][1], cf[2] * atomData[i].BO[b][2]);
@@ -515,10 +563,11 @@ namespace Magnum
 
         for (std::size_t bj = 0; bj < atomData[j].bonds.size(); ++bj)
         {
-            if (atomData[j].bonds[bj] != i)
-                continue;
-
+            if (atomData[j].bonds[bj] == i)
+            {
             Cbond[2] = cBO[0] * atomData[j].A2[bj] + (cBO[1] + cBO[2]) * atomData[j].A3[bj];
+            break;
+            }
         }
 
         atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
@@ -527,12 +576,13 @@ namespace Magnum
 
     void Ebond()
     {
-        std::size_t j, inxn;
+        std::size_t j, inxn, itype, jtype;
         Double exp_be12, PEbo, CEbo;
         Vector3d coeff;
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
+            itype = atomData[i].type;
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
@@ -540,12 +590,20 @@ namespace Magnum
                 if (j < i)
                     continue;
 
-                inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
+                jtype = atomData[j].type;
+                inxn = atom[itype].inxn2[jtype];
+
+                if (inxn == 0)
+                    continue;
+                inxn -= 1;
 
                 exp_be12 = exp(bond[inxn].pbe1 * (1.0 - pow(atomData[i].BO[b][0], bond[inxn].pbe2)));
                 PEbo = -bond[inxn].Desig * atomData[i].BO[b][0] * exp_be12 - bond[inxn].Depi * atomData[i].BO[b][1] - bond[inxn].Depipi * atomData[i].BO[b][2];
 
                 PE[1] = PE[1] + PEbo;
+
+                //Double _BO_sum = atomData[i].BO_sum[b];
+                //Vector3d _BO = atomData[i].BO[b];
 
                 CEbo = -bond[inxn].Desig * exp_be12 * (1.0 - bond[inxn].pbe1 * bond[inxn].pbe2 * pow(atomData[i].BO[b][0], bond[inxn].pbe2));
                 coeff = Vector3d(CEbo, -bond[inxn].Depi, -bond[inxn].Depipi);
@@ -557,7 +615,7 @@ namespace Magnum
     void Elnpr()
     {
         // TODO proper way of writing functions here, maybe initialize some array values as variables
-        std::size_t j, inxn, itype, idEh;
+        std::size_t j, inxn, itype, jtype, idEh;
         Vector3d coeff;
 
         // *Lone Pair Energy Terms
@@ -613,7 +671,10 @@ namespace Magnum
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
-                inxn = atom[itype].inxn2[atomData[j].type] - 1;
+                //if (j < i)
+                //    continue;
+                jtype = atomData[j].type;
+                inxn = atom[itype].inxn2[jtype] - 1;
 
                 sum_ovun1 += bond[inxn].povun1 * bond[inxn].Desig * atomData[i].BO_sum[b];
                 sum_ovun2 += (atomData[j].delta - atomData[j].deltalp) * (atomData[i].BO[b][1] + atomData[i].BO[b][2]);
@@ -646,7 +707,7 @@ namespace Magnum
             // *Energy Calculation
             PElp = atom[itype].plp2 * atomData[i].deltalp / (1.0 + expvd2);
             PEover = sum_ovun1 * DlpV_i * deltalpcorr * div_expovun2;
-            PEunder = atom[itype].povun5 * (1.0 - expovun6) * div_expovun2n * div_expovun8;
+            PEunder = -atom[itype].povun5 * (1.0 - expovun6) * div_expovun2n * div_expovun8;
 
             // *if the representitive atom is a resident ,sum their potential energies.
             PE[2] = PE[2] + PElp;
@@ -671,13 +732,16 @@ namespace Magnum
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
-                inxn = atom[itype].inxn2[atomData[j].type] - 1;
+                //if (j < i)
+                //    continue;
+                jtype = atomData[j].type;
+                inxn = atom[itype].inxn2[jtype] - 1;
 
                 CEover[4] = CEover[0] * bond[inxn].povun1 * bond[inxn].Desig;
                 CEover[5] = CEover[3] * (1.0 - atomData[j].dDlp) * (atomData[i].BO[b][1] + atomData[i].BO[b][2]);
                 CEover[6] = CEover[3] * (atomData[j].delta - atomData[j].deltalp);
 
-                CEunder[4] = CEunder[3] * (1.0 - atomData[j].dDlp * (atomData[i].BO[b][1] + atomData[i].BO[b][2]));
+                CEunder[4] = CEunder[3] * (1.0 - atomData[j].dDlp) * (atomData[i].BO[b][1] + atomData[i].BO[b][2]);
                 CEunder[5] = CEunder[3] * (atomData[j].delta - atomData[j].deltalp);
 
                 CElp_b = CElp + CEover[2] + CEover[4] + CEunder[2];
@@ -688,7 +752,7 @@ namespace Magnum
                 ForceBbo(i, j, b, coeff);
 
                 CElp_d = CEover[5] + CEunder[5];
-                atomData[j].cdbnd = atomData[j].cdbnd + CElp_d;
+                atomData[j].cdbnd += CElp_d;
             }
         }
     }
@@ -699,17 +763,27 @@ namespace Magnum
 
         Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
         dr = atomData[i].position - atomData[j].position;
+        if (!std::isnormal(dr.dot()))
+            dr = Vector3d{0.00000001};
+        
         ff = Cbond[0] * atomData[i].dBOp[b] * dr;
 
-        atomData[i].force = atomData[i].force - ff;
-        atomData[i].force = atomData[j].force + ff;
+        atomData[i].force -= ff;
+        atomData[i].force += ff;
 
         // A3 is not necessary anymore with the new BO def.
         Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
-        Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[b];
+        for (std::size_t ib; ib < atomData[j].bonds.size(); ++ib)
+        {
+            if (atomData[j].bonds[ib] == i)
+            {
+            Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
+            break;
+            }
+        }
 
-        atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
-        atomData[j].ccbnd = atomData[j].ccbnd + Cbond[2];
+        atomData[i].ccbnd += Cbond[1];
+        atomData[j].ccbnd += Cbond[2];
     }
 
     void ForceA3(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const Vector3d &da0, const Vector3d &da1, const Double &da0_0, const Double &da1_0)
@@ -719,35 +793,35 @@ namespace Magnum
         Containers::StaticArray<2, Vector2d> Caa;
         Double CCisqr, coCC;
 
-        Caa[1][1] = pow(da0_0, 2);
-        Caa[1][0] = (da0 * da1).sum();
-        Caa[0][1] = Caa[1][0];
-        Caa[0][0] = pow(da1_0, 2);
+        Caa[0][0] = pow(da0_0, 2);
+        Caa[0][1] = (da0 * da1).sum();
+        Caa[1][0] = Caa[0][1];
+        Caa[1][1] = pow(da1_0, 2);
 
         CCisqr = 1.0 / (da0_0 * da1_0);
         coCC = coeff * CCisqr;
 
         // Some of calculations are unnecessary due to the action-reaction relation.
-        Ci[0] = -(Caa[1][0] / Caa[1][1]);
+        Ci[0] = -(Caa[0][1] / Caa[0][0]);
         Ci[1] = 1.0;
 
         Ck[0] = -1.0;
-        Ck[1] = Caa[1][0] / Caa[0][0];
+        Ck[1] = Caa[0][1] / Caa[1][1];
 
         fij = coCC * (Ci[0] * da0 + Ci[1] * da1);
-        fjk = coCC * (Ck[0] * da0 + Ck[1] * da1);
+        fjk = -coCC * (Ck[0] * da0 + Ck[1] * da1);
         fijjk = -fij + fjk;
 
-        atomData[i].force = atomData[i].force + fij;
-        atomData[j].force = atomData[j].force + fijjk;
-        atomData[k].force = atomData[k].force - fjk;
+        atomData[i].force += fij;
+        atomData[j].force += fijjk;
+        atomData[k].force -= fjk;
     }
 
     void Ehb()
     {
         std::size_t j, k, itype, jtype, ktype, inxnhb;
-        Vector3d rjk, rij;
-        Double rjk0, rij0;
+        Vector3d rik, rjk, rij;
+        Double rik2, rjk0, rjk2, rij0, rij2;
         Double cos_ijk, theta_ijk, sin_ijk_half, sin_xhz4, cos_xhz1;
         Double exp_hb2, exp_hb3;
         Double PEhb;
@@ -759,6 +833,8 @@ namespace Magnum
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
+                //if (j < i)
+                //    continue;
                 jtype = atomData[j].type;
 
                 if (jtype == 2 && atomData[i].BO_sum[b] > MINBO0)
@@ -766,6 +842,8 @@ namespace Magnum
                     for (std::size_t ki; ki < atomData[i].neighbors.size(); ++ki)
                     {
                         k = atomData[i].neighbors[ki];
+                        //if (k < i)
+                        //    continue;
                         ktype = atomData[k].type;
 
                         inxnhb = atom[itype].inxn3hb[jtype][ktype];
@@ -774,14 +852,32 @@ namespace Magnum
                         {
                             inxnhb -= 1;
 
-                            if (atomData[i].dpq2[k] >= Double(rctap2))
+                            rik = atomData[i].position - atomData[k].position;
+                            rik2 = rik.dot();
+                            if (!std::isnormal(rik2))
+                            {
+                                rik = Vector3d{0.00000001};
+                                rik2 = 0.00000001;
+                            }
+                            if (rik2 >= rchb2)
                                 continue;
 
                             rjk = atomData[j].position - atomData[k].position;
-                            rjk0 = sqrt((rjk * rjk).sum());
+                            rjk2 = rjk.dot();
+                            if (!std::isnormal(rjk2)) {
+                                rjk = Vector3d{0.00000001};
+                                rjk2 = 0.00000001;
+                            }
+                            rjk0 = sqrt(rjk2);
 
                             rij = atomData[i].position - atomData[j].position;
-                            rij0 = sqrt((rij * rij).sum());
+                            rij2 = rij.dot();
+                            if (!std::isnormal(rij2))
+                            {
+                                rij = Vector3d{0.00000001};
+                                rij2 = 0.00000001;
+                            }
+                            rij0 = sqrt(rij2);
 
                             cos_ijk = -(rij * rjk).sum() / (rij0 * rjk0);
                             if (cos_ijk > MAXANGLE)
@@ -811,8 +907,8 @@ namespace Magnum
 
                             ff = CEhb[2] * rjk;
 
-                            atomData[j].force = atomData[k].force - ff;
-                            atomData[k].force = atomData[k].force + ff;
+                            atomData[j].force -= ff;
+                            atomData[k].force += ff;
                         }
                     }
                 }
@@ -826,7 +922,7 @@ namespace Magnum
         // Valency Energy Calculation Terms:
         Double PEval, fn7ij, fn7jk, fn8j, delta_ang;
         Vector3d rij, rjk;
-        Double rij0, rjk0, SBO2, SBO;
+        Double rij0, rij2, rjk0, rjk2, SBO2, SBO;
         Double sum_BO8, theta_ijk, theta0, theta_diff, exp2;
         Double sin_ijk, cos_ijk;
         Double Cf7ij, Cf7jk, Cf8j, Ctheta0, CSBO2; // ! [unused] Ctheta_diff
@@ -857,6 +953,8 @@ namespace Magnum
 
             for (std::size_t b = 0; b < atomData[j].bonds.size(); ++b)
             {
+                //if (atomData[j].bonds[b] < j)
+                //    continue;
                 sum_BO8 = sum_BO8 - pow(atomData[j].BO_sum[b], 8);
                 sum_SBO1 = sum_SBO1 + atomData[j].BO[b][1] + atomData[j].BO[b][2];
             }
@@ -871,10 +969,18 @@ namespace Magnum
                 if (BOij > 0.0)
                 {
                     i = atomData[j].bonds[b0];
+                    if (i < j)
+                        continue;
                     itype = atomData[i].type;
 
                     rij = atomData[i].position - atomData[j].position;
-                    rij0 = sqrt((rij * rij).sum());
+                    rij2 = rij.dot();
+                    if (!std::isnormal(rij2))
+                    {
+                        rij = Vector3d{0.00000001};
+                        rij2 = 0.00000001;
+                    }
+                    rij0 = sqrt(rij2);
 
                     for (std::size_t b1 = 1; b1 < atomData[j].bonds.size(); ++b1)
                     {
@@ -887,10 +993,18 @@ namespace Magnum
                             continue;
 
                         k = atomData[j].bonds[b1];
+                        //if (k < j)
+                        //    continue;
                         ktype = atomData[k].type;
 
                         rjk = atomData[j].position - atomData[k].position;
-                        rjk0 = sqrt((rjk * rjk).sum());
+                        rjk2 = rjk.dot();
+                        if (!std::isnormal(rjk2))
+                        {
+                            rjk = Vector3d{0.00000001};
+                            rjk2 = 0.00000001;
+                        }
+                        rjk0 = sqrt(rjk2);
 
                         cos_ijk = -(rij * rjk).sum() / (rij0 * rjk0);
                         if (cos_ijk > MAXANGLE)
@@ -1039,35 +1153,28 @@ namespace Magnum
                         CE3body_a = CEval[7];
 
                         // Force calculation
-                        for (std::size_t ib = 0; ib < atomData[i].bonds.size(); ++ib)
+                        for (std::size_t b2 = 0; b2 < atomData[i].bonds.size(); ++b2)
                         {
-                            if (atomData[i].bonds[ib] == j)
+                            if (atomData[i].bonds[b2] == j)
                             {
-                                ForceB(i, j, ib, CE3body_b[0]);
-                                break; // BO_ij
+                            ForceB(i, j, b2, CE3body_b[0]); // BO_ij
+                            break;
                             }
                         }
 
-                        for (std::size_t kb = 0; kb < atomData[k].bonds.size(); ++kb)
-                        {
-                            if (atomData[k].bonds[kb] == j)
-                            {
-                                ForceB(j, k, kb, CE3body_b[1]);
-                                break; // BO_jk
-                            }
-                        }
+                        ForceB(j, k, b1, CE3body_b[1]); // BO_jk
 
-                        for (std::size_t jb = 0; jb < atomData[j].bonds.size(); ++jb)
+                        for (std::size_t b3 = 0; b3 < atomData[j].bonds.size(); ++b3)
                         {
-                            coeff_val = CE3body_d[0] + CEval[5] * pow(atomData[j].BO_sum[jb], 7);
+                            coeff_val = CE3body_d[0] + CEval[5] * pow(atomData[j].BO_sum[b3], 7);
                             coeff = Vector3d(coeff_val, CEval[4] + coeff_val, CEval[4] + coeff_val);
 
-                            const std::size_t n = atomData[j].bonds[jb];
-                            ForceBbo(j, n, jb, coeff);
+                            const std::size_t l = atomData[j].bonds[b3];
+                            ForceBbo(j, l, b3, coeff);
                         }
 
-                        atomData[i].cdbnd = atomData[i].cdbnd + CE3body_d[1];
-                        atomData[k].cdbnd = atomData[k].cdbnd + CE3body_d[2];
+                        atomData[i].cdbnd += CE3body_d[1];
+                        atomData[k].cdbnd += CE3body_d[2];
 
                         ForceA3(CE3body_a, i, j, k, rij, rjk, rij0, rjk0);
                     }
@@ -1092,7 +1199,7 @@ namespace Magnum
         Caa[1][0] = Caa[0][1];
         Caa[1][1] = pow(da1_0, 2);
         Caa[1][2] = (da1 * da2).sum();
-        
+
         Caa[2][0] = Caa[0][2];
         Caa[2][1] = Caa[1][2];
         Caa[2][2] = pow(da2_0, 2);
@@ -1111,7 +1218,7 @@ namespace Magnum
         Cwi[2] = Caa[1][1];
 
         Cwj[0] = -(Caa[1][2] + (Caa[1][1] + Caa[1][0]) / Daa[0] * com);
-        Cwj[1] = -(Caa[1][2] - 2 * Caa[0][2] - Caa[2][2] / Daa[1] * com - (Caa[0][0] + Caa[1][0]) / Daa[0] * com);
+        Cwj[1] = -(-Caa[1][2] - 2 * Caa[0][2] - Caa[2][2] / Daa[1] * com - (Caa[0][0] + Caa[1][0]) / Daa[0] * com);
         Cwj[2] = -(Caa[1][0] + Caa[1][1] + Caa[1][2] / Daa[1] * com);
 
         Cwl[0] = -Caa[1][1];
@@ -1129,10 +1236,10 @@ namespace Magnum
         fijjk = -fij + fjk;
         fjkkl = -fjk + fkl;
 
-        atomData[i].force = atomData[i].force + fij;
-        atomData[j].force = atomData[j].force + fijjk;
-        atomData[k].force = atomData[k].force + fjkkl;
-        atomData[l].force = atomData[l].force - fkl;
+        atomData[i].force += fij;
+        atomData[j].force += fijjk;
+        atomData[k].force += fjkkl;
+        atomData[l].force -= fkl;
     }
 
     void E4b()
@@ -1148,7 +1255,7 @@ namespace Magnum
 
         // vectors
         Vector3d rjk, rij, rkl, crs_ijk, crs_jkl;
-        Double rjk0, rij0, rkl0, crs_ijk0, crs_jkl0;
+        Double rjk0, rjk2, rij0, rij2, rkl0, rkl2, crs_ijk0, crs_jkl0;
 
         Double delta_ang_j, delta_ang_k, delta_ang_jk;
         Double exp_tor1, exp_tor3, exp_tor4, exp_tor34_i, fn10, fn11, dfn11, fn12, PEtors, PEconj, cmn;
@@ -1168,11 +1275,11 @@ namespace Magnum
 
             for (std::size_t k0; k0 < atomData[j].bonds.size(); ++k0)
             {
-                if (atomData[j].BO_sum[k0] <= cutof2_esub)
+                if (atomData[j].BO_sum[k0] > cutof2_esub)
                 {
                     BOjk = atomData[j].BO_sum[k0] - cutof2_esub;
                     k = atomData[j].bonds[k0];
-
+                    
                     if (j < k)
                         continue;
 
@@ -1181,7 +1288,13 @@ namespace Magnum
                     delta_ang_jk = delta_ang_j + delta_ang_k;
 
                     rjk = atomData[j].position - atomData[k].position;
-                    rjk0 = sqrt(rjk.dot());
+                    rjk2 = rjk.dot();
+                    if (!std::isnormal(rjk2))
+                    {
+                        rjk = Vector3d{0.00000001};
+                        rjk2 = 0.00000001;
+                    }
+                    rjk0 = sqrt(rjk2);
 
                     for (std::size_t i0; i0 < atomData[j].bonds.size(); ++i0)
                     {
@@ -1195,7 +1308,13 @@ namespace Magnum
 
                             itype = atomData[i].type;
                             rij = atomData[i].position - atomData[j].position;
-                            rij0 = sqrt(rij.dot());
+                            rij2 = rij.dot();
+                            if (!std::isnormal(rij2))
+                            {
+                                rij = Vector3d{0.00000001};
+                                rij2 = 0.00000001;
+                            }
+                            rij0 = sqrt(rij2);
 
                             // Calculate the angle i-j-k
                             cos_ijk = -(rij * rjk).sum() / (rij0 * rjk0);
@@ -1215,10 +1334,12 @@ namespace Magnum
 
                             for (std::size_t l0; l0 < atomData[k].bonds.size(); ++l0)
                             {
-                                if (atomData[k].BO_sum[l0] > cutof2_esub && (atomData[k].BO_sum[l0] * atomData[k].BO_sum[l0]) > cutof2_esub)
+                                if (atomData[k].BO_sum[l0] > cutof2_esub && (atomData[j].BO_sum[k0] * atomData[k].BO_sum[l0]) > cutof2_esub)
                                 {
                                     BOkl = atomData[k].BO_sum[l0] - cutof2_esub;
                                     l = atomData[k].bonds[l0];
+                                    //if (l < k)
+                                    //    continue;
                                     ltype = atomData[l].type;
                                     inxn = atom[itype].inxn4[jtype][ktype][ltype];
 
@@ -1229,6 +1350,12 @@ namespace Magnum
                                         if (pow(atomData[j].BO_sum[i0] * atomData[j].BO_sum[k0], 2) * atomData[k].BO_sum[l0] > MINBO0)
                                         {
                                             rkl = atomData[k].position - atomData[l].position;
+                                            rkl2 = rkl.dot();
+                                            if (!std::isnormal(rkl2))
+                                            {
+                                                rkl = Vector3d{0.00000001};
+                                                rkl2 = 0.00000001;
+                                            }
                                             rkl0 = sqrt(rkl.dot());
 
                                             exp_tor2[0] = exp(-torsion[inxn].ptor2 * BOij); // i-j
@@ -1284,7 +1411,7 @@ namespace Magnum
                                             // Force coefficient calculation
                                             // TOrsional term
                                             CEtors[0] = 0.5 * sin_ijk * sin_jkl * (torsion[inxn].V1 * (1.0 + cos_ijkl[0]) + torsion[inxn].V2 * exp_tor1 * cos_ijkl[1] + torsion[inxn].V3 * cos_ijkl[2]);
-                                            CEtors[1] = -torsion[inxn].ptor2 * fn10 * sin_ijk * sin_jkl * torsion[inxn].V2 * exp_tor1 * btb2 * cos_ijkl[1];
+                                            CEtors[1] = -torsion[inxn].ptor1 * fn10 * sin_ijk * sin_jkl * torsion[inxn].V2 * exp_tor1 * btb2 * cos_ijkl[1];
 
                                             dfn11 = (-torsion[inxn].ptor3 * exp_tor3 + (torsion[inxn].ptor3 * exp_tor3 - torsion[inxn].ptor4 * exp_tor4) * (2.0 + exp_tor3) * exp_tor34_i) * exp_tor34_i;
 
@@ -1312,39 +1439,25 @@ namespace Magnum
                                             C4body_b = Vector3d(CEconj[0], CEconj[1], CEconj[2]) + Vector3d(CEtors[3], CEtors[4], CEtors[5]); // dBOij, dBOjk, dBOkl
                                             C4body_a = Vector3d(CEconj[3], CEconj[4], CEconj[5]) + Vector3d(CEtors[6], CEtors[7], CEtors[8]); // ijk, jkl, ijkl
 
-                                            atomData[j].cdbnd = atomData[j].cdbnd + CEtors[2];
-                                            atomData[k].cdbnd = atomData[k].cdbnd + CEtors[2];
+                                            atomData[j].cdbnd += CEtors[2];
+                                            atomData[k].cdbnd += CEtors[2];
 
                                             for (std::size_t ib = 0; ib < atomData[i].bonds.size(); ++ib)
                                             {
                                                 if (atomData[i].bonds[ib] == j)
                                                 {
-                                                    ForceB(i, j, ib, C4body_b[0]);
-                                                    break;
+                                                ForceB(i, j, ib, C4body_b[0]);
+                                                break;
                                                 }
+                                                
                                             }
 
-                                            // To take care of the derivative of BOpi(j,k), add <Ctors(2)> to 
+                                            // To take care of the derivative of BOpi(j,k), add <Ctors(2)> to
                                             // the full BOjk derivative coefficient <C4body_b(2)>, but only pi-bond component
                                             C4body_b_jk = Vector3d(C4body_b[1], CEtors[1] + C4body_b[1], C4body_b[1]);
 
-                                            for (std::size_t kb = 0; kb < atomData[k].bonds.size(); ++kb)
-                                            {
-                                                if (atomData[k].bonds[kb] == j)
-                                                {
-                                                    ForceBbo(j, k, kb, C4body_b_jk);
-                                                    break;
-                                                }
-                                            }
-
-                                            for (std::size_t lb = 0; lb < atomData[l].bonds.size(); ++lb)
-                                            {
-                                                if (atomData[l].bonds[lb] == k)
-                                                {
-                                                    ForceB(k, l, lb, C4body_b[2]);
-                                                    break;
-                                                }
-                                            }
+                                            ForceBbo(j, k, k0, C4body_b_jk);
+                                            ForceB(k, l, l0, C4body_b[2]);
 
                                             ForceA3(C4body_a[0], i, j, k, rij, rjk, rij0, rjk0);
                                             ForceA3(C4body_a[1], j, k, l, rjk, rkl, rjk0, rkl0);
@@ -1370,27 +1483,31 @@ namespace Magnum
             j = atomData[i].bonds[b];
             if (j < i)
                 continue;
-            
             Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
             dr = atomData[i].position - atomData[j].position;
+            if (!std::isnormal(dr.dot()))
+                dr = Vector3d{0.00000001};
+
             ff = Cbond[0] * atomData[i].dBOp[b] * dr;
 
-            atomData[i].force = atomData[i].force - ff;
-            atomData[j].force = atomData[j].force + ff;
-            
+            atomData[i].force -= ff;
+            atomData[j].force += ff;
+
             Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
-            
+
             for (std::size_t ib = 0; ib < atomData[j].bonds.size(); ++ib)
             {
                 if (atomData[j].bonds[ib] == i)
                 {
-                    Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
-                    break;
+                Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
+                break;
                 }
             }
 
-            atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
-            atomData[j].ccbnd = atomData[i].ccbnd + Cbond[2];
+            atomData[i].ccbnd += Cbond[1];
+            atomData[j].ccbnd += Cbond[2];
+
+            //Debug{} << Cbond << coeff << atomData[i].BO_sum[b] << atomData[i].A2[b];
         }
     }
 
@@ -1408,16 +1525,30 @@ namespace Magnum
                 if (j < i)
                     continue;
                 dr = atomData[i].position - atomData[j].position;
+                if (!std::isnormal(dr.dot()))
+                    dr = Vector3d{0.00000001};
+
                 ff = atomData[i].ccbnd * atomData[i].dBOp[b] * dr;
-                atomData[i].force = atomData[i].force - ff;
-                atomData[j].force = atomData[j].force + ff;
+
+                atomData[i].force -= ff;
+                atomData[j].force += ff;
+
+                //Debug{} << atomData[i].force;
             }
-            atomData[i].ccbnd = 0.0;
+
+            if (!std::isnormal(atomData[i].force.dot()))
+                atomData[i].force = Vector3d{0.0};
         }
     }
 
     void FORCE()
     {
+        for (std::size_t i = 0; i < NATOMS; ++i)
+        {
+            atomData[i].force = Vector3d{0.0};
+            atomData[i].ccbnd = 0.0;
+            atomData[i].cdbnd = 0.0;
+        }
         // calculate BO prime
         BOPRIM();
         // calculate full BO
@@ -1430,15 +1561,15 @@ namespace Magnum
         E4b();
         ForceBondedTerms();
 
-        for (std::size_t i = 0; i < NATOMS; ++i)
-        {
-            astr[0] = astr[0] + atomData[i].position[0] * atomData[i].force[0];
-            astr[1] = astr[1] + atomData[i].position[1] * atomData[i].force[1];
-            astr[2] = astr[2] + atomData[i].position[2] * atomData[i].force[2];
-            astr[3] = astr[3] + atomData[i].position[1] * atomData[i].force[2];
-            astr[4] = astr[4] + atomData[i].position[2] * atomData[i].force[0];
-            astr[5] = astr[5] + atomData[i].position[0] * atomData[i].force[1];
-        }
+        //for (std::size_t i = 0; i < NATOMS; ++i)
+        //{
+        //    astr[0] = astr[0] + atomData[i].position[0] * atomData[i].force[0];
+        //    astr[1] = astr[1] + atomData[i].position[1] * atomData[i].force[1];
+        //    astr[2] = astr[2] + atomData[i].position[2] * atomData[i].force[2];
+        //    astr[3] = astr[3] + atomData[i].position[1] * atomData[i].force[2];
+        //    astr[4] = astr[4] + atomData[i].position[2] * atomData[i].force[0];
+        //    astr[5] = astr[5] + atomData[i].position[0] * atomData[i].force[1];
+        //}
     }
 
     void vkick(const Double &dtf)

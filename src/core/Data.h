@@ -127,6 +127,7 @@ namespace Magnum
     extern const Double Cclmb0_qeq; /* [ev] */
     extern const Double Cclmb0;     // [kcal/mol/A] line 2481 in poten.f
     extern const Double CEchrge;    /* [ev] */
+    extern Double rchb, rchb2;
 
     extern Float rctap, rctap2;
     extern Float UDR, UDRi;
@@ -167,6 +168,8 @@ namespace Magnum
 
     extern Double BORDER;
     extern Double BORDER2;
+
+    extern Double BO_MAX;
 }
 
 #endif

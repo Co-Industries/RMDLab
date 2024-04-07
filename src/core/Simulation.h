@@ -40,6 +40,8 @@ namespace Magnum
         std::size_t atomCount;
         Float atomRadius;
         Float randomVelocity;
+        Double timestep;
+        Double border;
     };
 
     struct AtomInstanceData

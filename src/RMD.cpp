@@ -57,9 +57,11 @@ namespace Magnum
         Containers::Pointer<Simulation> simulation;
 
         //? Parameters
-        std::size_t atomCount = 50;
-        Float atomRadius = 2.0;
-        Float randomVelocity = 1.0;
+        std::size_t atomCount = 200;
+        Float atomRadius = 0.3;
+        Float randomVelocity = 2.0;
+        Double timestep = 0.25;
+        Double border = 20.0;
 
         Containers::Optional<ArcBallCamera> arcballCamera;
 
@@ -103,7 +105,7 @@ namespace Magnum
 
         /* INFO Camera */
         {
-            const Vector3 eye = Vector3::zAxis(500.0f);
+            const Vector3 eye = Vector3::zAxis(200.0f);
             const Vector3 center{};
             const Vector3 up = Vector3::yAxis();
             const Deg fov = 45.0_degf;
@@ -122,7 +124,6 @@ namespace Magnum
         if (!paused || skipFrame)
         {
             skipFrame = false;
-            simulation->UPDATE_OCTREE();
             simulation->UPDATE_ATOMS();
         }
 
@@ -153,9 +154,11 @@ namespace Magnum
             ImGui::InputScalar("<NATOMS>", ImGuiDataType_U64, &atomCount);
             ImGui::InputFloat("<RADIUS>", &atomRadius);
             ImGui::InputFloat("<VELOCITY>", &randomVelocity);
+            ImGui::InputDouble("<TIMESTEP>", &timestep);
+            ImGui::InputDouble("<BORDER>", &border);
             if (ImGui::Button("Run Simulation"))
             {    
-                simulation->RUN(SimulationParameters{atomCount, atomRadius, randomVelocity});
+                simulation->RUN(SimulationParameters{atomCount, atomRadius, randomVelocity, timestep, border});
                 paused = false;
             }
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
@@ -285,7 +288,7 @@ namespace Magnum
         if (Math::abs(delta) < 1.0e-2f)
             return;
 
-        arcballCamera->zoom(50 * delta);
+        arcballCamera->zoom(10 * delta);
 
         event.setAccepted();
     }
