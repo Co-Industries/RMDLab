@@ -42,6 +42,7 @@ namespace Magnum
     struct Atom
     {
         std::string name;
+        Float size;
         Color3 color;
         Double vop, gam, eta, chi, rat, rapt, vnq, Val, Valangle, Valboc;
         Double Valval, eps, alf, rvdw1;

@@ -105,7 +105,7 @@ namespace Magnum
 
         /* INFO Camera */
         {
-            const Vector3 eye = Vector3::zAxis(200.0f);
+            const Vector3 eye = Vector3::zAxis(20.0f);
             const Vector3 center{};
             const Vector3 up = Vector3::yAxis();
             const Deg fov = 45.0_degf;
@@ -288,7 +288,7 @@ namespace Magnum
         if (Math::abs(delta) < 1.0e-2f)
             return;
 
-        arcballCamera->zoom(10 * delta);
+        arcballCamera->zoom(2 * delta);
 
         event.setAccepted();
     }

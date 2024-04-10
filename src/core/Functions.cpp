@@ -70,8 +70,10 @@ namespace Magnum
                 j = atomData[i].neighbors[n];
 
                 // ? qeq_initialize()
-                //if (j < i)
+                // if (j < i)
                 //  continue;
+                if (!std::isnormal(atomData[i].dpq2[n]))
+                    Debug{} << "<dpq2>" << atomData[i].dpq2[n];
 
                 itb = Int(atomData[i].dpq2[n] * Double(UDRi));
                 itb1 = itb + 1;
@@ -80,12 +82,15 @@ namespace Magnum
 
                 inxn = atom[atomData[i].type].inxn2[atomData[j].type] - 1;
                 arrayAppend(atomData[i].hessian, InPlaceInit, (1.0 - drtb) * TBL_Eclmb_QEq[itb][inxn] + drtb * TBL_Eclmb_QEq[itb1][inxn]);
-                // arrayAppend(atomData[j].hessian, InPlaceInit, (1.0 - drtb) * TBL_Eclmb_QEq[itb][inxn] + drtb * TBL_Eclmb_QEq[itb1][inxn]);
-
                 // ? get_gradient [Gnew]
 
+                if (!std::isnormal(atomData[i].hessian[n]))
+                    Debug{} << "<hessian>" << atomData[i].hessian << itb << TBL_Eclmb_QEq[itb][inxn] << TBL_Eclmb_QEq[itb1][inxn];
+                
                 gssum += atomData[i].hessian[n] * atomData[j].qs;
                 gtsum += atomData[i].hessian[n] * atomData[j].qt;
+
+                
 
                 // TODO might need to do atomData[j] - idk
             }
@@ -96,6 +101,15 @@ namespace Magnum
 
             atomData[i].hs = atomData[i].gs;
             atomData[i].ht = atomData[i].gt;
+
+            if (!std::isnormal(atomData[i].gs))
+                Debug{} << "<gs>" << atomData[i].gs;
+            if (!std::isnormal(atomData[i].gt))
+                Debug{} << "<gt>" << atomData[i].gt;
+            if (!std::isnormal(atomData[i].hs))
+                Debug{} << "<hs>" << atomData[i].hs;
+            if (!std::isnormal(atomData[i].ht))
+                Debug{} << "<ht>" << atomData[i].ht;
         }
 
         Gnew[0] = dot_product(1);
@@ -120,8 +134,8 @@ namespace Magnum
                 {
                     j = atomData[i].neighbors[n];
 
-                    //if (j < i)
-                    //    continue;
+                    // if (j < i)
+                    //     continue;
 
                     _hshs += atomData[i].hessian[n] * atomData[j].hs;
                     _hsht += atomData[i].hessian[n] * atomData[j].ht;
@@ -162,6 +176,12 @@ namespace Magnum
                 atomData[i].qt += lmin[1] * atomData[i].ht;
                 ssum += atomData[i].qs;
                 tsum += atomData[i].qt;
+
+                if (!std::isnormal(atomData[i].qs))
+                    Debug{} << "<qt>" << atomData[i].qs;
+
+                if (!std::isnormal(atomData[i].qt))
+                    Debug{} << "<qt>" << atomData[i].qt;
             }
 
             mu = ssum / tsum;
@@ -171,12 +191,14 @@ namespace Magnum
             for (std::size_t i = 0; i < NATOMS; ++i)
             {
                 atomData[i].q = atomData[i].qs - mu * atomData[i].qt;
+                if (!std::isnormal(atomData[i].q))
+                    Debug{} << "<q>" << atomData[i].q;
                 for (std::size_t n = 0; n < atomData[i].neighbors.size(); ++n)
                 {
                     j = atomData[i].neighbors[n];
 
                     // ? get_gradient [Gnew]
-                    //if (j < i)
+                    // if (j < i)
                     //   continue;
 
                     gssum += atomData[i].hessian[n] * atomData[j].qs;
@@ -186,6 +208,11 @@ namespace Magnum
                 _eta = atom[itype].eta;
                 atomData[i].gs = -atom[itype].chi - _eta * atomData[i].qs - gssum;
                 atomData[i].gt = -1.0 - _eta * atomData[i].qt - gtsum;
+
+                if (!std::isnormal(atomData[i].gs))
+                    Debug{} << "<gs_2>" << atomData[i].gs;
+                if (!std::isnormal(atomData[i].gt))
+                    Debug{} << "<gt_2>" << atomData[i].gt;
             }
 
             const Containers::StaticArray<2, Double> Gold(Gnew);
@@ -197,6 +224,11 @@ namespace Magnum
             {
                 atomData[i].hs = atomData[i].gs + (Gnew[0] / Gold[0]) * atomData[i].hs;
                 atomData[i].ht = atomData[i].gt + (Gnew[1] / Gold[1]) * atomData[i].ht;
+
+                if (!std::isnormal(atomData[i].hs))
+                    Debug{} << "<hs_2>" << atomData[i].hs;
+                if (!std::isnormal(atomData[i].ht))
+                    Debug{} << "<ht_2>" << atomData[i].ht;
             }
         }
     }
@@ -210,13 +242,15 @@ namespace Magnum
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
             atomData[i].deltap[0] = -atom[atomData[i].type].Val;
+
+            if (!std::isnormal(atomData[i].deltap[0]))
+                Debug{} << "<deltap0>" << atomData[i].deltap;
         }
 
         for (std::size_t i = 0; i < NATOMS; ++i)
         {
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
-                //Debug{} << atomData[i].bonds;
                 j = atomData[i].bonds[b];
 
                 if (j < i)
@@ -227,29 +261,27 @@ namespace Magnum
                 // TODO idk if 0.5 * dr is correct.
                 dr2 = dr.dot();
                 if (!std::isnormal(dr2))
+                {
+                    Debug{} << "<dr2_1>" << atomData[i].position << atomData[j].position;
                     dr2 = 0.00000000001;
+                }
 
-                //if (dr2 > bond[inxn].rc2)
-                //    continue;
+                if (dr2 > bond[inxn].rc2)
+                    continue;
 
                 arg_BOpij[0] = bond[inxn].cBOp1 * pow(dr2, bond[inxn].pbo2h);
                 arg_BOpij[1] = bond[inxn].cBOp3 * pow(dr2, bond[inxn].pbo4h);
                 arg_BOpij[2] = bond[inxn].cBOp5 * pow(dr2, bond[inxn].pbo6h);
 
-                
-                //Debug{} << dr << dr2 << pow(dr2, bond[inxn].pbo2h) << pow(dr2, bond[inxn].pbo4h) << pow(dr2, bond[inxn].pbo6h);
-
                 for (std::size_t k = 0; k < 3; ++k)
                 {
                     _bo[k] = bond[inxn].swh[k] * exp(arg_BOpij[k]);
                     if (_bo[k] > BO_MAX)
+                    {
+                        Debug{} << "<_bo>" << _bo[k];
                         _bo[k] = BO_MAX;
-                    //Debug{} << _bo[k] << exp(arg_BOpij[k]);
+                    }
                 }
-                
-                //Debug{} << arg_BOpij;
-
-                //Debug{} << arg_BOpij;
 
                 // Small modification exists in sigma-bond prime, see reac.f line 4444. sigma-bond prime is multiplied by
                 // (1.d0 + 1.d-4) here.  Later in original reaxff code, sigma-bond prime is subtracted by
@@ -285,7 +317,6 @@ namespace Magnum
                     arrayAppend(atomData[j].bo, InPlaceInit, _bo);
                     atomData[i].deltap[0] += _bo_sum;
                     atomData[j].deltap[0] += _bo_sum;
-                    //Debug{} << _bo << _dln_BOp << dBOp << _bo_sum;
                 }
                 else
                 {
@@ -298,13 +329,16 @@ namespace Magnum
                     arrayAppend(atomData[i].bo_sum, InPlaceInit, 0.0);
                     arrayAppend(atomData[j].bo_sum, InPlaceInit, 0.0);
                 }
-                //Debug{} << dr2 << pow(dr2, bond[inxn].pbo2h) << pow(dr2, bond[inxn].pbo4h) << pow(dr2, bond[inxn].pbo6h);
-                //Debug{} << "<arg_BOpij>" << arg_BOpij;
-                //Debug{} << "<dln_BOp>" << atomData[i].dln_BOp << atomData[j].dln_BOp;
-                //Debug{} << "<dBOp>" << atomData[i].dBOp << atomData[j].dBOp;
-                //Debug{} << "<bo>" << atomData[i].bo << atomData[j].bo;
-                //Debug{} << "<bo_sum>" << atomData[i].bo_sum << atomData[j].bo_sum;
-                //Debug{} << "<deltap>" << atomData[i].deltap << atomData[j].deltap;
+                if (!std::isnormal(atomData[i].dln_BOp[b].sum()))
+                    Debug{} << "<dln_BOp>" << atomData[i].dln_BOp << atomData[j].dln_BOp;
+                if (!std::isnormal(atomData[i].dBOp[b]))
+                    Debug{} << "<dBOp>" << atomData[i].dBOp << atomData[j].dBOp;
+                if (!std::isnormal(atomData[i].bo[b].sum()))
+                    Debug{} << "<bo>" << atomData[i].bo << atomData[j].bo;
+                if (!std::isnormal(atomData[i].bo_sum[b]))
+                    Debug{} << "<bo_sum>" << atomData[i].bo_sum << atomData[j].bo_sum;
+                if (!std::isnormal(atomData[i].deltap[0]))
+                    Debug{} << "<deltap0_2>" << atomData[i].deltap << atomData[j].deltap;
             }
         }
     }
@@ -326,6 +360,8 @@ namespace Magnum
         {
             itype = atomData[i].type;
             atomData[i].deltap[1] = atomData[i].deltap[0] + atom[itype].Val - atom[itype].Valval;
+            if (!std::isnormal(atomData[i].deltap[1]))
+                Debug{} << "<deltap1>" << atomData[i].deltap;
         }
 
         for (std::size_t i = 0; i < NATOMS; ++i)
@@ -390,6 +426,11 @@ namespace Magnum
 
                 arrayAppend(atomData[i].BO_sum, InPlaceInit, _BO_sum);
                 arrayAppend(atomData[j].BO_sum, InPlaceInit, _BO_sum);
+
+                if (!std::isnormal(atomData[i].BO[b].sum()))
+                    Debug{} << "<BO>" << atomData[i].BO << atomData[j].BO;
+                if (!std::isnormal(atomData[i].BO_sum[b]))
+                    Debug{} << "<BO_sum>" << atomData[i].BO_sum << atomData[j].BO_sum;
 
                 // CALCULATION OF DERIVATIVE OF BOND ORDER
                 // all following comes from Coding Methodology section:
@@ -456,8 +497,14 @@ namespace Magnum
                 arrayAppend(atomData[j].A2, InPlaceInit, Cf1ji_div1 + (bond[inxn].pboc3 * Cf45ji * fn45_inv));
                 arrayAppend(atomData[j].A3, InPlaceInit, atomData[i].A2[atomData[i].A2.size() - 1] + Cf1ji_div1);
 
-                //Debug{} << atomData[i].A0 << atomData[i].A1 << atomData[i].A2 << atomData[i].A3;
-                //Debug{} << atomData[i].bo << atomData[i].bo_sum << atomData[i].dln_BOp << atomData[i].dBOp << atomData[i].deltap;
+                if (!std::isnormal(atomData[i].A0[b]))
+                    Debug{} << "<iA0>" << atomData[i].A0;
+                if (!std::isnormal(atomData[i].A1[b]))
+                    Debug{} << "<iA1>" << atomData[i].A1;  
+                if (!std::isnormal(atomData[i].A2[b]))
+                    Debug{} << "<iA2>" << atomData[i].A2;
+                if (!std::isnormal(atomData[i].A3[b]))
+                    Debug{} << "<iA3>" << atomData[i].A3;
             }
         }
 
@@ -466,11 +513,13 @@ namespace Magnum
             _BO_nsum = 0.0;
             for (std::size_t b = 0; b < atomData[i].BO_sum.size(); ++b)
             {
-                //if (atomData[i].bonds[b] < i)
-                //    continue;
+                // if (atomData[i].bonds[b] < i)
+                //     continue;
                 _BO_nsum += atomData[i].BO_sum[b];
             }
             atomData[i].delta = -atom[atomData[i].type].Val - atom[atomData[i].type].Valval + _BO_nsum;
+            if (!std::isnormal(atomData[i].delta))
+                Debug{} << "<delta>" << atomData[i].delta;
         }
     }
 
@@ -496,18 +545,20 @@ namespace Magnum
 
                 dr = atomData[i].position - atomData[j].position;
                 dr2 = dr.dot();
-                if (!std::isnormal(dr2)) {
+                if (!std::isnormal(dr2))
+                {
+                    Debug{} << "<dr2_2>" << atomData[i].position << atomData[j].position;
                     dr = Vector3d{0.000000001};
                     dr2 = 0.00000000001;
                 }
 
-                if (dr2 > bond[inxn].rc2)
-                    continue;
+                // if (dr2 > bond[inxn].rc2)
+                //     continue;
 
                 jtype = atomData[j].type;
-                itb = Int(atomData[i].dpq2[n] * Double(UDRi));
+                itb = Int(dr2 * Double(UDRi));
                 itb1 = itb + 1;
-                drtb = atomData[i].dpq2[n] - itb * Double(UDR);
+                drtb = dr2 - itb * Double(UDR);
                 drtb = drtb * Double(UDRi);
 
                 inxn = atom[itype].inxn2[jtype] - 1;
@@ -527,9 +578,12 @@ namespace Magnum
                 PE[12] = PE[12] + PEclmb;
 
                 ff = (CEvdw + CEclmb) * dr;
-                
+
                 atomData[i].force -= ff;
                 atomData[j].force += ff;
+
+                //if (!std::isnormal(ff.dot()))
+                //    Debug{} << "<ff1>" << ff;
             }
         }
     }
@@ -544,17 +598,21 @@ namespace Magnum
         Cbond[0] = cf[0] * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]) * atomData[i].dBOp[b] +
                    cf[1] * atomData[i].BO[b][1] * (atomData[i].dln_BOp[b][1] + atomData[i].A1[b] * atomData[i].dBOp[b]) +
                    cf[2] * atomData[i].BO[b][2] * (atomData[i].dln_BOp[b][2] + atomData[i].A1[b] * atomData[i].dBOp[b]);
-        
-        dr = atomData[i].position - atomData[j].position;
-        if (!std::isnormal(dr.dot()))
-            dr = Vector3d{0.00000001};
-        
-        ff = Cbond[0] * dr;
 
-        
+        dr = atomData[i].position - atomData[j].position;
+        if (!std::isnormal(dr.dot())) {
+            Debug{} << "<dr_3>" << atomData[i].position << atomData[j].position;
+            dr = Vector3d{0.00000001};
+        }
+        ff = Cbond[0] * dr;
 
         atomData[i].force -= ff;
         atomData[j].force += ff;
+
+        //if (!std::isnormal(ff.dot()))
+        //{
+        //    Debug{} << "<ff2>" << ff;
+        //}
 
         // * 1st element is "full"-bond order.
         cBO = Vector3d(cf[0] * atomData[i].BO_sum[b], cf[1] * atomData[i].BO[b][1], cf[2] * atomData[i].BO[b][2]);
@@ -565,13 +623,18 @@ namespace Magnum
         {
             if (atomData[j].bonds[bj] == i)
             {
-            Cbond[2] = cBO[0] * atomData[j].A2[bj] + (cBO[1] + cBO[2]) * atomData[j].A3[bj];
-            break;
+                Cbond[2] = cBO[0] * atomData[j].A2[bj] + (cBO[1] + cBO[2]) * atomData[j].A3[bj];
+                break;
             }
         }
 
         atomData[i].ccbnd = atomData[i].ccbnd + Cbond[1];
         atomData[j].ccbnd = atomData[j].ccbnd + Cbond[2];
+
+        //if (!std::isnormal(atomData[i].ccbnd))
+        //    Debug{} << "<iccbnd1>" << atomData[i].ccbnd;
+        //if (!std::isnormal(atomData[j].ccbnd))
+        //    Debug{} << "<jccbnd1>" << atomData[j].ccbnd;
     }
 
     void Ebond()
@@ -602,10 +665,12 @@ namespace Magnum
 
                 PE[1] = PE[1] + PEbo;
 
-                //Double _BO_sum = atomData[i].BO_sum[b];
-                //Vector3d _BO = atomData[i].BO[b];
+                // Double _BO_sum = atomData[i].BO_sum[b];
+                // Vector3d _BO = atomData[i].BO[b];
 
                 CEbo = -bond[inxn].Desig * exp_be12 * (1.0 - bond[inxn].pbe1 * bond[inxn].pbe2 * pow(atomData[i].BO[b][0], bond[inxn].pbe2));
+                // TODO CHANGES HERE FOR FAKE DEMO
+                // ! coeff = Vector3d(CEbo, -bond[inxn].Depi, -bond[inxn].Depipi);
                 coeff = Vector3d(CEbo, -bond[inxn].Depi, -bond[inxn].Depipi);
                 ForceBbo(i, j, b, coeff);
             }
@@ -615,7 +680,8 @@ namespace Magnum
     void Elnpr()
     {
         // TODO proper way of writing functions here, maybe initialize some array values as variables
-        std::size_t j, inxn, itype, jtype, idEh;
+        std::size_t j, inxn, itype, jtype;
+        Int idEh;
         Vector3d coeff;
 
         // *Lone Pair Energy Terms
@@ -653,9 +719,15 @@ namespace Magnum
             Clp = 2.0 * atom[itype].plp1 * explp1 * (2.0 + deltaE - 2 * idEh);
 
             atomData[i].dDlp = Clp;
+            //if (!std::isnormal(atomData[i].dDlp))
+            //    Debug{} << "<dDlp>" << atomData[i].dDlp << atom[itype].plp1 << explp1 << idEh << deltaE;
 
-            atomData[i].nlp = explp1 - Double(idEh);
+            atomData[i].nlp = dEh;
+            if (!std::isnormal(atomData[i].nlp))
+                Debug{} << "<nlp>";
             atomData[i].deltalp = atom[itype].nlpopt - atomData[i].nlp;
+            if (!std::isnormal(atomData[i].deltalp))
+                Debug{} << "<deltalp>";
 
             if (atom[itype].mass > 21.0)
                 atomData[i].deltalp = 0.0;
@@ -671,8 +743,8 @@ namespace Magnum
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
-                //if (j < i)
-                //    continue;
+                // if (j < i)
+                //     continue;
                 jtype = atomData[j].type;
                 inxn = atom[itype].inxn2[jtype] - 1;
 
@@ -749,10 +821,17 @@ namespace Magnum
 
                 // coeff(1:3) = CElp_b + (/ 0.0, CElp_bpp, CElp_bpp/)
                 coeff = Vector3d(CElp_b, CElp_bpp + CElp_b, CElp_bpp + CElp_b);
+
                 ForceBbo(i, j, b, coeff);
 
                 CElp_d = CEover[5] + CEunder[5];
                 atomData[j].cdbnd += CElp_d;
+
+                //if (!std::isnormal(atomData[j].cdbnd)) {
+                //    //Debug{} << atomData[i].deltalp << atom[itype].povun4 << expovun1 << pow(div_expovun1, 2);
+                //    //Debug{} << atomData[j].dDlp << atomData[i].BO[b];
+                //    Debug{} << "<cdbnd1>" << atomData[j].cdbnd;
+                //}
             }
         }
     }
@@ -763,13 +842,18 @@ namespace Magnum
 
         Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
         dr = atomData[i].position - atomData[j].position;
-        if (!std::isnormal(dr.dot()))
+        if (!std::isnormal(dr.dot())) {
+            Debug{} << "<dr4>" << atomData[i].position << atomData[j].position;
             dr = Vector3d{0.00000001};
-        
+        }
+
         ff = Cbond[0] * atomData[i].dBOp[b] * dr;
 
         atomData[i].force -= ff;
         atomData[i].force += ff;
+
+        //if (!std::isnormal(ff.dot()))
+        //        Debug{} << "<ff4>";
 
         // A3 is not necessary anymore with the new BO def.
         Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
@@ -777,13 +861,18 @@ namespace Magnum
         {
             if (atomData[j].bonds[ib] == i)
             {
-            Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
-            break;
+                Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
+                break;
             }
         }
 
         atomData[i].ccbnd += Cbond[1];
         atomData[j].ccbnd += Cbond[2];
+
+        //if (!std::isnormal(atomData[i].ccbnd))
+        //    Debug{} << "<iccbnd2>" << atomData[i].ccbnd;
+        //if (!std::isnormal(atomData[j].ccbnd))
+        //    Debug{} << "<jccbnd2>" << atomData[j].ccbnd;
     }
 
     void ForceA3(const Double &coeff, const std::size_t &i, const std::size_t &j, const std::size_t &k, const Vector3d &da0, const Vector3d &da1, const Double &da0_0, const Double &da1_0)
@@ -815,6 +904,13 @@ namespace Magnum
         atomData[i].force += fij;
         atomData[j].force += fijjk;
         atomData[k].force -= fjk;
+
+        //if (!std::isnormal(atomData[i].force.dot()))
+        //    Debug{} << "<iforce1>" << atomData[i].force;
+        //if (!std::isnormal(atomData[j].force.dot()))
+        //    Debug{} << "<jforce1>" << atomData[j].force;
+        //if (!std::isnormal(atomData[k].force.dot()))
+        //    Debug{} << "<kforce1>" << atomData[k].force;
     }
 
     void Ehb()
@@ -833,8 +929,8 @@ namespace Magnum
             for (std::size_t b = 0; b < atomData[i].bonds.size(); ++b)
             {
                 j = atomData[i].bonds[b];
-                //if (j < i)
-                //    continue;
+                // if (j < i)
+                //     continue;
                 jtype = atomData[j].type;
 
                 if (jtype == 2 && atomData[i].BO_sum[b] > MINBO0)
@@ -842,8 +938,8 @@ namespace Magnum
                     for (std::size_t ki; ki < atomData[i].neighbors.size(); ++ki)
                     {
                         k = atomData[i].neighbors[ki];
-                        //if (k < i)
-                        //    continue;
+                        // if (k < i)
+                        //     continue;
                         ktype = atomData[k].type;
 
                         inxnhb = atom[itype].inxn3hb[jtype][ktype];
@@ -856,6 +952,7 @@ namespace Magnum
                             rik2 = rik.dot();
                             if (!std::isnormal(rik2))
                             {
+                                Debug{} << "<rik2_1>";
                                 rik = Vector3d{0.00000001};
                                 rik2 = 0.00000001;
                             }
@@ -864,7 +961,9 @@ namespace Magnum
 
                             rjk = atomData[j].position - atomData[k].position;
                             rjk2 = rjk.dot();
-                            if (!std::isnormal(rjk2)) {
+                            if (!std::isnormal(rjk2))
+                            {
+                                Debug{} << "<rjk2_1>";
                                 rjk = Vector3d{0.00000001};
                                 rjk2 = 0.00000001;
                             }
@@ -874,6 +973,7 @@ namespace Magnum
                             rij2 = rij.dot();
                             if (!std::isnormal(rij2))
                             {
+                                Debug{} << "<rij2_1>";
                                 rij = Vector3d{0.00000001};
                                 rij2 = 0.00000001;
                             }
@@ -909,6 +1009,9 @@ namespace Magnum
 
                             atomData[j].force -= ff;
                             atomData[k].force += ff;
+
+                            //if (!std::isnormal(ff.dot()))
+                            //    Debug{} << "<ff5>";
                         }
                     }
                 }
@@ -953,8 +1056,8 @@ namespace Magnum
 
             for (std::size_t b = 0; b < atomData[j].bonds.size(); ++b)
             {
-                //if (atomData[j].bonds[b] < j)
-                //    continue;
+                // if (atomData[j].bonds[b] < j)
+                //     continue;
                 sum_BO8 = sum_BO8 - pow(atomData[j].BO_sum[b], 8);
                 sum_SBO1 = sum_SBO1 + atomData[j].BO[b][1] + atomData[j].BO[b][2];
             }
@@ -977,6 +1080,7 @@ namespace Magnum
                     rij2 = rij.dot();
                     if (!std::isnormal(rij2))
                     {
+                        Debug{} << "<rij2_2>";
                         rij = Vector3d{0.00000001};
                         rij2 = 0.00000001;
                     }
@@ -993,14 +1097,15 @@ namespace Magnum
                             continue;
 
                         k = atomData[j].bonds[b1];
-                        //if (k < j)
-                        //    continue;
+                        // if (k < j)
+                        //     continue;
                         ktype = atomData[k].type;
 
                         rjk = atomData[j].position - atomData[k].position;
                         rjk2 = rjk.dot();
                         if (!std::isnormal(rjk2))
                         {
+                            Debug{} << "<rjk2_2>";
                             rjk = Vector3d{0.00000001};
                             rjk2 = 0.00000001;
                         }
@@ -1157,8 +1262,8 @@ namespace Magnum
                         {
                             if (atomData[i].bonds[b2] == j)
                             {
-                            ForceB(i, j, b2, CE3body_b[0]); // BO_ij
-                            break;
+                                ForceB(i, j, b2, CE3body_b[0]); // BO_ij
+                                break;
                             }
                         }
 
@@ -1175,6 +1280,11 @@ namespace Magnum
 
                         atomData[i].cdbnd += CE3body_d[1];
                         atomData[k].cdbnd += CE3body_d[2];
+
+                        //if (!std::isnormal(atomData[i].cdbnd))
+                        //    Debug{} << "<icdbnd3>" << atomData[i].cdbnd;
+                        //if (!std::isnormal(atomData[k].cdbnd))
+                        //    Debug{} << "<kcdbnd3>" << atomData[k].cdbnd;
 
                         ForceA3(CE3body_a, i, j, k, rij, rjk, rij0, rjk0);
                     }
@@ -1240,6 +1350,15 @@ namespace Magnum
         atomData[j].force += fijjk;
         atomData[k].force += fjkkl;
         atomData[l].force -= fkl;
+
+        //if (!std::isnormal(atomData[i].force.dot()))
+        //    Debug{} << "<iforce2>";
+        //if (!std::isnormal(atomData[j].force.dot()))
+        //    Debug{} << "<jforce2>";
+        //if (!std::isnormal(atomData[k].force.dot()))
+        //    Debug{} << "<kforce2>";
+        //if (!std::isnormal(atomData[l].force.dot()))
+        //    Debug{} << "<lforce2>";
     }
 
     void E4b()
@@ -1279,7 +1398,7 @@ namespace Magnum
                 {
                     BOjk = atomData[j].BO_sum[k0] - cutof2_esub;
                     k = atomData[j].bonds[k0];
-                    
+
                     if (j < k)
                         continue;
 
@@ -1291,6 +1410,7 @@ namespace Magnum
                     rjk2 = rjk.dot();
                     if (!std::isnormal(rjk2))
                     {
+                        Debug{} << "<rjk2_3>";
                         rjk = Vector3d{0.00000001};
                         rjk2 = 0.00000001;
                     }
@@ -1311,6 +1431,7 @@ namespace Magnum
                             rij2 = rij.dot();
                             if (!std::isnormal(rij2))
                             {
+                                Debug{} << "<rij2_3>";
                                 rij = Vector3d{0.00000001};
                                 rij2 = 0.00000001;
                             }
@@ -1338,8 +1459,8 @@ namespace Magnum
                                 {
                                     BOkl = atomData[k].BO_sum[l0] - cutof2_esub;
                                     l = atomData[k].bonds[l0];
-                                    //if (l < k)
-                                    //    continue;
+                                    // if (l < k)
+                                    //     continue;
                                     ltype = atomData[l].type;
                                     inxn = atom[itype].inxn4[jtype][ktype][ltype];
 
@@ -1353,6 +1474,7 @@ namespace Magnum
                                             rkl2 = rkl.dot();
                                             if (!std::isnormal(rkl2))
                                             {
+                                                Debug{} << "<rkl2_3>";
                                                 rkl = Vector3d{0.00000001};
                                                 rkl2 = 0.00000001;
                                             }
@@ -1442,14 +1564,18 @@ namespace Magnum
                                             atomData[j].cdbnd += CEtors[2];
                                             atomData[k].cdbnd += CEtors[2];
 
+                                            //if (!std::isnormal(atomData[j].cdbnd))
+                                            //    Debug{} << "<jcdbnd4>";
+                                            //if (!std::isnormal(atomData[k].cdbnd))
+                                            //    Debug{} << "<kcdbnd4>";
+
                                             for (std::size_t ib = 0; ib < atomData[i].bonds.size(); ++ib)
                                             {
                                                 if (atomData[i].bonds[ib] == j)
                                                 {
-                                                ForceB(i, j, ib, C4body_b[0]);
-                                                break;
+                                                    ForceB(i, j, ib, C4body_b[0]);
+                                                    break;
                                                 }
-                                                
                                             }
 
                                             // To take care of the derivative of BOpi(j,k), add <Ctors(2)> to
@@ -1485,13 +1611,18 @@ namespace Magnum
                 continue;
             Cbond[0] = coeff * (atomData[i].A0[b] + atomData[i].BO_sum[b] * atomData[i].A1[b]);
             dr = atomData[i].position - atomData[j].position;
-            if (!std::isnormal(dr.dot()))
+            if (!std::isnormal(dr.dot())) {
+                Debug{} << "<dr6>";
                 dr = Vector3d{0.00000001};
+            }
 
             ff = Cbond[0] * atomData[i].dBOp[b] * dr;
 
             atomData[i].force -= ff;
             atomData[j].force += ff;
+
+            //if (!std::isnormal(ff.dot()))
+            //    Debug{} << "<ff7>" << ff;
 
             Cbond[1] = coeff * atomData[i].BO_sum[b] * atomData[i].A2[b];
 
@@ -1499,15 +1630,18 @@ namespace Magnum
             {
                 if (atomData[j].bonds[ib] == i)
                 {
-                Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
-                break;
+                    Cbond[2] = coeff * atomData[i].BO_sum[b] * atomData[j].A2[ib];
+                    break;
                 }
             }
 
             atomData[i].ccbnd += Cbond[1];
             atomData[j].ccbnd += Cbond[2];
 
-            //Debug{} << Cbond << coeff << atomData[i].BO_sum[b] << atomData[i].A2[b];
+           //if (!std::isnormal(atomData[i].ccbnd))
+           //    Debug{} << "<iccbnd7>";
+           //if (!std::isnormal(atomData[j].ccbnd))
+           //    Debug{} << "<jccbnd7>";
         }
     }
 
@@ -1525,15 +1659,18 @@ namespace Magnum
                 if (j < i)
                     continue;
                 dr = atomData[i].position - atomData[j].position;
-                if (!std::isnormal(dr.dot()))
+                if (!std::isnormal(dr.dot())) {
+                    Debug{} << "<dr8>";
                     dr = Vector3d{0.00000001};
+                }
 
                 ff = atomData[i].ccbnd * atomData[i].dBOp[b] * dr;
 
                 atomData[i].force -= ff;
                 atomData[j].force += ff;
 
-                //Debug{} << atomData[i].force;
+                //if (!std::isnormal(ff.dot()))
+                //    Debug{} << "<ff8>";
             }
 
             if (!std::isnormal(atomData[i].force.dot()))
@@ -1561,15 +1698,15 @@ namespace Magnum
         E4b();
         ForceBondedTerms();
 
-        //for (std::size_t i = 0; i < NATOMS; ++i)
+        // for (std::size_t i = 0; i < NATOMS; ++i)
         //{
-        //    astr[0] = astr[0] + atomData[i].position[0] * atomData[i].force[0];
-        //    astr[1] = astr[1] + atomData[i].position[1] * atomData[i].force[1];
-        //    astr[2] = astr[2] + atomData[i].position[2] * atomData[i].force[2];
-        //    astr[3] = astr[3] + atomData[i].position[1] * atomData[i].force[2];
-        //    astr[4] = astr[4] + atomData[i].position[2] * atomData[i].force[0];
-        //    astr[5] = astr[5] + atomData[i].position[0] * atomData[i].force[1];
-        //}
+        //     astr[0] = astr[0] + atomData[i].position[0] * atomData[i].force[0];
+        //     astr[1] = astr[1] + atomData[i].position[1] * atomData[i].force[1];
+        //     astr[2] = astr[2] + atomData[i].position[2] * atomData[i].force[2];
+        //     astr[3] = astr[3] + atomData[i].position[1] * atomData[i].force[2];
+        //     astr[4] = astr[4] + atomData[i].position[2] * atomData[i].force[0];
+        //     astr[5] = astr[5] + atomData[i].position[0] * atomData[i].force[1];
+        // }
     }
 
     void vkick(const Double &dtf)

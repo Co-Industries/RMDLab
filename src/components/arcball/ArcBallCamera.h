@@ -55,7 +55,7 @@ namespace Magnum
             (*(_camera = new SceneGraph::Camera3D{*cameraObject}))
                 .setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
                 .setProjectionMatrix(Matrix4::perspectiveProjection(
-                    fov, Vector2{windowSize}.aspectRatio(), 10.0f, 10000.0f))
+                    fov, Vector2{windowSize}.aspectRatio(), 1.0f, 10000.0f))
                 .setViewport(viewportSize);
 
             /* Save the abstract transformation interface and initialize the

@@ -57,6 +57,12 @@ namespace Magnum
         Color3 color;
     };
 
+    struct BondInstanceData
+    {
+        Matrix4 transformationMatrix;
+        Color3 color;
+    };
+
     class Simulation
     {
     public:
