@@ -78,7 +78,7 @@ namespace Magnum
     const Double UTIME = 1.0e3 / 20.455;
     Double Lex_w2 = 1.0;
     Double Lex_k = 2.0;
-    std::size_t nstep = 0, qstep = 2;
+    std::size_t nstep = 0, qstep = 1;
 
     Double BORDER = 100.0;
     Double BORDER2 = 2 * BORDER;

@@ -36,7 +36,7 @@ namespace Magnum
         GL::Buffer vertices;
         for (Vector3 vertex : _meshData.positions3DAsArray())
         {
-            float yValue = (vertex.y() + 0.2f) / 8.0f + 0.3f;
+            //float yValue = (vertex.y() + 0.2f) / 8.0f + 0.3f;
             //arrayAppend(colorData, InPlaceInit, Color3({yValue}));
             arrayAppend(colorData, InPlaceInit, Color3::fromSrgbInt(0xf4f4f4));
         }

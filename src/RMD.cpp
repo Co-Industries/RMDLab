@@ -288,7 +288,7 @@ namespace Magnum
         if (Math::abs(delta) < 1.0e-2f)
             return;
 
-        arcballCamera->zoom(2 * delta);
+        arcballCamera->zoom(50 * delta);
 
         event.setAccepted();
     }
