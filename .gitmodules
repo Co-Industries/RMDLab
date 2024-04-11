@@ -10,3 +10,6 @@
 [submodule "rxmd"]
 	path = rxmd
 	url = https://github.com/USCCACS/RXMD.git
+[submodule "toolchains"]
+	path = toolchains
+	url = https://github.com/mosra/toolchains
